@@ -145,12 +145,17 @@ function leaf(...alts) {
   return list.length ? { alts: list } : null;
 }
 
-/** One operator voice line: charword voiceAsset ('char_263_skadi/CN_023') → `audio/voice/<lang>/<charId>/cn_023.mp3`. */
-function voiceAlt(asset, lang) {
+/**
+ * One operator voice line: charword voiceAsset ('char_263_skadi/CN_023') → `audio/voice/<lang>/<charId>/cn_023.mp3`.
+ * `base` overrides the ArknightsAssets2 voice dump for an operator that dump does not carry — the 升变 forms, whose
+ * lines the extra-operators record points at the PRTS asset host (the owner's instruction of 2026-10-12; see
+ * docs/ASSETS.md). Everything else keeps `RAW.aa2voice`.
+ */
+function voiceAlt(asset, lang, base = null) {
   const [charId, voiceId] = String(asset).split('/');
   if (!charId || !voiceId || !/^[a-z0-9_]+$/i.test(charId) || !/^[a-z]{2}_\d+$/i.test(voiceId)) return null;
   const file = `${charId}/${voiceId.toLowerCase()}.mp3`;
-  return alt(`audio/voice/${lang}/${file}`, joinUrl(RAW.aa2voice, `${VOICE_DIRS[lang]}/${file}`));
+  return alt(`audio/voice/${lang}/${file}`, joinUrl(base || RAW.aa2voice, `${VOICE_DIRS[lang]}/${file}`));
 }
 
 /** Sound path under sound_beta_2 → alternative under public/assets/audio/<sub>. */
@@ -205,17 +210,24 @@ function walkKeys(node, add) {
  * Front / Back, the skill icons, the sub-profession icon. No expected byte counts (the downloader validates the files);
  * a file the mirrors lack is a miss the client falls back from (the E2 art to the E0–E1 one, a missing Back to Front).
  * @param {string} id charId
- * @param {{ subProfessionId?: string|null, nationId?: string|null, skills?: Array<{ index: number, skillId: string, iconId?: string|null }> }} x
+ * @param {{ subProfessionId?: string|null, nationId?: string|null, skills?: Array<{ index: number, skillId: string, iconId?: string|null }>, avatar?: any, portrait?: any }} x
+ *   `x.avatar` / `x.portrait` (optional): leaf objects merged over the defaults — for an operator the art dump carries
+ *   only at E2 (阿米娅·医疗 `char_1037_amiya3`), whose E0–E1 URL falls back to the same file because the client reads
+ *   `avatar` / `portrait` for a non-E2 view and does not fall back from them (public/js/assets.js avatarUrl).
  */
 export function patternOperator(id, x = {}) {
   const sp = (side) => {
     const b = `${RAW.fexli}spine/${id}/${id}/${side}/${id}`;
     return { skel: `${b}.skel`, atlas: `${b}.atlas`, png: `${b}.png` };
   };
+  const avatar = { e0e1: { url: `${RAW.yuanyan}avatar/${id}.png` }, e2: { url: `${RAW.yuanyan}avatar/${id}_2.png` } };
+  const portrait = { e0e1: { url: `${RAW.yuanyan}portrait/${id}_1.png` }, e2: { url: `${RAW.yuanyan}portrait/${id}_2.png` } };
+  if (x.avatar && typeof x.avatar === 'object') Object.assign(avatar, x.avatar);
+  if (x.portrait && typeof x.portrait === 'object') Object.assign(portrait, x.portrait);
   return {
     name: x.name ?? null, subProfessionId: x.subProfessionId ?? null, nationId: x.nationId ?? null, chess: [],
-    avatar: { e0e1: { url: `${RAW.yuanyan}avatar/${id}.png` }, e2: { url: `${RAW.yuanyan}avatar/${id}_2.png` } },
-    portrait: { e0e1: { url: `${RAW.yuanyan}portrait/${id}_1.png` }, e2: { url: `${RAW.yuanyan}portrait/${id}_2.png` } },
+    avatar,
+    portrait,
     skills: (x.skills || []).map((s) => ({
       index: s.index, skillId: s.skillId, iconId: s.iconId || s.skillId,
       icon: { url: `${RAW.yuanyan}skill/skill_icon_${encodeURIComponent(s.iconId || s.skillId)}.png` },
@@ -664,6 +676,25 @@ export function buildPlan({ assets07, ops03, enemies05, maps05, audio, modelsDat
   // `audio.voiceJp` (VOICE_JP_LANG): the same slots and lines in the Japanese dub, a second tree beside the Chinese one
   // (the owner's request of 2026-10-08) — same file names, `audio/voice/jp/`.
   const voiceSlotsByChar = indexVoice(charword, VOICE_ID_LANG, voiceSlots);
+  // Voices of the extra operators (tools/assets/extra-operators.json `voice`): operators charword_table.json does not
+  // carry — the 升变 forms. `voice.slots` maps a manifest slot to its official voiceIds (`CN_019`), `voice.base` names
+  // the host those lines come from when the ArknightsAssets2 dump has none (阿米娅·医疗: torappu.prts.wiki).
+  const voiceBaseByChar = new Map();
+  for (const [id, x] of Object.entries(extraOperators || {})) {
+    const voice = x && typeof x === 'object' ? x.voice : null;
+    const slots = voice && typeof voice === 'object' ? voice.slots : null;
+    if (!slots || typeof slots !== 'object') continue;
+    const rec = {};
+    for (const [slot, ids] of Object.entries(slots)) {
+      if (voiceSlots && !new Set(voiceSlots).has(slot)) continue;
+      const list = (Array.isArray(ids) ? ids : [ids]).filter((v) => typeof v === 'string' && v);
+      if (list.length) rec[slot] = list.map((v) => `${id}/${v}`);
+    }
+    if (Object.keys(rec).length) {
+      voiceSlotsByChar.set(id, rec);
+      if (typeof voice.base === 'string' && voice.base) voiceBaseByChar.set(id, voice.base);
+    }
+  }
   const voiceTree = (lang) => {
     const tree = {};
     for (const [charId, slots] of voiceSlotsByChar) {
@@ -672,7 +703,7 @@ export function buildPlan({ assets07, ops03, enemies05, maps05, audio, modelsDat
       for (const [slot, assets] of Object.entries(slots)) {
         // one leaf per line (部署1 / 部署2 …): an array stays an array so the client can draw one — chaining them as
         // alternatives of a single leaf would keep only the first line that landed on disk.
-        const lines = assets.map((a) => leaf(voiceAlt(a, lang))).filter(Boolean);
+        const lines = assets.map((a) => leaf(voiceAlt(a, lang, voiceBaseByChar.get(charId) || null))).filter(Boolean);
         if (!lines.length) continue;
         v[slot] = lines.length === 1 ? lines[0] : lines;
       }

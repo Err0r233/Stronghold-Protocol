@@ -45,6 +45,12 @@
 //                 refilled by shield_ratio_each_trigger /s when the target was not hit for `interval` s (always while
 //                 凯瑟琳's timed skill runs, owner bb overwrite_ratio)
 //   投递坐标 / 风雪之眼 / 保护目标  inert pieces (no attack; 风雪之眼 untargetable) — their effects belong to the owner kit
+//   魂灵之影 (维什戴尔)  the owner's kit summons it with its own kit (`op-wisdel.js shadowKit`); this entry is only the
+//                 data-default fallback for a spawn WITHOUT that owner (its own strike is the owner's, `wisdel:shadow`) —
+//                 inert, like the other owner-driven tokens above
+//   指挥中心 (可露希尔, 巴别塔)  a hand piece (data `placeable`, deployLimit 1, deployable only inside the summoner's
+//                 range): "不攻击，能够阻挡两个敌人" — inert; the block count (2) is the record's own stat, so nothing is
+//                 pinned here
 //   炎佑 (enemy_9012_acloon)  flying ally: flies after the highest-aggro enemy of the field and hovers over it, stays
 //                 put when there is none; 3-target arts + burn on every hit, 元素脆弱 aura, 祛恶之焰 channel (yanyouKit)
 //   预备干员-医疗 / Touch (band map characters)  generic kit / 恳切福音 kit
@@ -117,9 +123,11 @@ export const TOKEN_IDS = Object.freeze({
   wolfPack: 'token_10028_vigil_wolf',
   manifold: 'token_10030_mlyss_wtrman',
   champagne: 'token_10031_swire2_gdtrap',
+  shadow: 'token_10035_wisdel_wward',
   ulpiaMarker: 'token_10039_ulpia_block',
   goldenOath: 'token_10040_siege2_vlion',
   catShield: 'token_10041_cathy_catsld',
+  closurBase: 'token_10066_closur_ourbase',
   deliveryTarget: 'token_10056_angel2_target',
   eagle1: 'token_10057_svash2_eagle1',
   eagle2: 'token_10057_svash2_eagle2',
@@ -1606,9 +1614,11 @@ const RAW_KITS = {
   [TOKEN_IDS.wolfPack]: wolfPack,
   [TOKEN_IDS.manifold]: manifold,
   [TOKEN_IDS.champagne]: champagne,
+  [TOKEN_IDS.shadow]: inert(),
   [TOKEN_IDS.ulpiaMarker]: ulpiaMarker,
   [TOKEN_IDS.goldenOath]: goldenOath,
   [TOKEN_IDS.catShield]: catShield,
+  [TOKEN_IDS.closurBase]: inert(),
   [TOKEN_IDS.deliveryTarget]: inert({ hideFromEnemies: true }),
   [TOKEN_IDS.eagle1]: inert({ hideFromEnemies: true }),
   [TOKEN_IDS.eagle2]: inert({ hideFromEnemies: true }),

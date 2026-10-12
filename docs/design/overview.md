@@ -11,7 +11,7 @@ In scope:
 - Difficulties: 标准 FUNNY, 险境 NORMAL, 绝境 HARD, 终极 ABYSS (solo and multi variants from `modeDataDict`). Training/tutorial mode is out of scope.
 - Pre-game: INFO_CHECK briefing (disabled bonds, banned operators, enemy factions, stage) → BAND_CHECK strategy draft (40 bands, random order, 1 skip in co-op) → BATTLE_CHECK.
 - Rounds 1–14 (+ hidden 15): prep (shop, hand, board, items, freeze, refresh, level-up, sell, merge + reward pick, ready), 机变 draft rounds, simultaneous auto-combat on each player's own field, 联防 unite phase, LP loss/elimination, Final Assault boss round with merged LP and shared boss HP pool, Hidden Core, settlement with titles.
-- Full content: 112 visible chess (+ elites), their default skills and talents, 23 bonds with layers, all 43 特质 (garrison) effect keys, 56 equipment + Arts, 40 bands, 机变 cards, enemy factions/special enemies, 10 bosses, stage devices/terrain (crates, blowers, mire, smog, deep sea, infection).
+- Full content: 122 visible chess (+ elites), their default skills and talents, 25 bonds with layers (the official 23 + the 自研 巴别塔 and 元素, §29.15 / §29.21), all 43 特质 (garrison) effect keys, 56 equipment + Arts, 40 bands, 机变 cards, enemy factions/special enemies, 10 bosses, stage devices/terrain (crates, blowers, mire, smog, deep sea, infection).
 - Rendering with the real Spine battle chibis (PixiJS 7 + pixi-spine 4), procedural tiles, VFX, damage numbers, real BGM/SFX, emotes, broadcast ticker.
 - Reconnect, AI take-over of disconnected players, robust validation of every client intent.
 
@@ -96,7 +96,7 @@ server/
       kits/ops/*.js        one operator kit (skills + talents) per file, <chessId>-<codename>.js
       kits/shared/*.js     helpers the kits share (shared/tier1.js: the general ones)
       tokens.js            summon/token definitions
-      bonds.js             battle side of the 23 bonds
+      bonds.js             battle side of the 25 bonds (bonds/core.js: the 9 core; bonds/addon.js: the official 15 add-on; bonds/addon/element.js: the 自研 元素)
       garrisons.js         battle side (IN_BATTLE) garrison effect keys
       items.js             battle side of equipment + Arts
       bands.js             battle side of band (strategy) effects

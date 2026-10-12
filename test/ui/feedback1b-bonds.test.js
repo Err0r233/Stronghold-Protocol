@@ -59,7 +59,9 @@ test('a real 标准 match: 奥术 operators are buyable, three on the board neve
   h.toPrep(1);
   const m = h.m, ps = h.ps('p_0');
   const members = DATA.bonds.arcaneShip.visibleMembers.filter((id) => m.pool.has(id) && !m.bannedChess.includes(id));
-  assert.deepEqual(members.map((id) => DATA.chess[id].name), ['深靛', '洛洛', '阿罗玛', '夕', '圣聆初雪'], 'members kept in the pool by their other bond');
+  // 阿米娅 and 逻各斯 are 奥术 members too: the mode ban takes a chess only when EVERY one of its bonds is off, and the
+  // 巴别塔 layer gives those two babelShip (数据里的第二盟约), so they stay in the pool (docs/research/15-babel-bond.md §2)
+  assert.deepEqual(members.map((id) => DATA.chess[id].name), ['深靛', '阿米娅', '洛洛', '阿罗玛', '逻各斯', '夕', '圣聆初雪'], 'members kept in the pool by their other bond');
   ps.board.clear();
   const used = new Set();
   for (const id of members.slice(0, 3)) { const t = legalTileFor(m, ps, id, used); used.add(tileKey(t[0], t[1])); give(m, ps, id, 'board', t); }

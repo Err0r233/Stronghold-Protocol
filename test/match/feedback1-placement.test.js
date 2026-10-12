@@ -134,10 +134,19 @@ test('#3 bots never put a piece into the water (layout planner and full bot prep
 // ---------------------------------------------------------------------------------------------------------------------
 // #9 tactical points
 
-test('#9 data: 狼群 and 流形 are owner-range summons (token text "只能部署在召唤者攻击范围内"), no other hand summon is', () => {
+test('#9 data: every owner-range summon is one whose token text says "只能部署在召唤者攻击范围内" — no other hand summon is', () => {
   assert.equal(DATA.tokens[WOLF].ownerRange, true);
   assert.equal(DATA.tokens[MANIFOLD].ownerRange, true);
-  for (const t of Object.values(DATA.tokens)) if (t.placeable && t.tokenId !== WOLF && t.tokenId !== MANIFOLD) assert.ok(!t.ownerRange, t.name);
+  // 可露希尔's「指挥中心」(the 巴别塔 layer's deployable) carries the same clause — 菲莱's 巴别塔 form sends it
+  // (docs/research/15-babel-bond.md); the flag is derived from the text by tools/build-data.mjs buildTokens
+  const CLOSUR_BASE = 'token_10066_closur_ourbase';
+  assert.equal(DATA.tokens[CLOSUR_BASE].ownerRange, true);
+  assert.match(DATA.tokens[CLOSUR_BASE].desc, /只能部署在召唤者攻击范围内/);
+  for (const t of Object.values(DATA.tokens)) {
+    if (t.placeable && t.tokenId !== WOLF && t.tokenId !== MANIFOLD && t.tokenId !== CLOSUR_BASE) assert.ok(!t.ownerRange, t.name);
+    // and the flag never appears without the clause in the text
+    if (t.ownerRange) assert.match(String(t.desc ?? ''), /只能部署在召唤者攻击范围内/, t.name);
+  }
 });
 
 test('#9 g.move: 伺夜\'s 狼群 only on a tile of her attack range (rotated grid of her tile + facing); outside → BAD_TILE', () => {

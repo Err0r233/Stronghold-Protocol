@@ -97,11 +97,22 @@ test('data/i18n/en.json: shape, the 盟约 season of the EN build, coverage and 
   assert.equal(OVERLAY.meta.source.season, 'act2autochess', 'built from an EN client that has 卫戍协议：盟约 下半');
   // 0.2.3 adds Clementia before her EN release: official untranslated names/skills/talents remain Chinese.
   // Measured 2026-10-09: total 97.4%, skills 95.9%, talents 94.9%; other category floors stay unchanged.
+  // The 自研 layer (tools/content/custom.mjs, docs/DATA.md §19) carries no official EN text, so the six kinds it
+  // touches fell below the 98 % floor when data/i18n/en.json was rebuilt over the rebuilt data/ — those texts simply
+  // stay Chinese in the EN interface (docs/I18N.md §2). Measured 2026-10-12 over the rebuilt data: bonds 95.8 / 144,
+  // choices 99.7 / 681, effects 97.8 / 1107, items 95.1 / 612, garrisons 95.6 / 813, tokens 95.3 / 509 (维什戴尔's
+  // summon token_10035_wisdel_wward); every other kind unchanged.
+  // Measured again 2026-10-13, when the default-skill batch (§29.24) rebuilt the overlay a second time (12 chess
+  // records re-keyed their `skill` leaves, 维什戴尔's summon token its `bySkill` ones): 元素's five 特质 pairs joined
+  // `garrisons` (813 → 831 texts, 94.2 %) and 巴别塔's six plus 元素's four texts joined `bonds` (144 → 150, 93.3 %) —
+  // both were measured BEFORE those texts landed, so the two floors follow the measurement here. Nothing else moved
+  // (choices 99.7, effects 97.7, items 95.1, garrisons 94.2, tokens 95.3, total 97.1 %).
+  const FLOORS = { talents: 94.9, operators: 95, skills: 95, modules: 95, bonds: 93, choices: 99, effects: 97, items: 95, garrisons: 94, tokens: 95 };
   assert.ok(OVERLAY.meta.totals.pct >= 97, `coverage ${OVERLAY.meta.totals.pct} %`);
   for (const kind of ['operators', 'skills', 'talents', 'modules', 'traits', 'enemies', 'bonds', 'items', 'effects', 'bands', 'garrisons', 'stages', 'tokens', 'choices', 'config']) {
     const c = OVERLAY.meta.coverage[kind];
     assert.ok(c && c.texts > 0, `coverage of ${kind}`);
-    assert.ok(c.pct >= (kind === 'talents' ? 94.9 : ['operators', 'skills', 'modules'].includes(kind) ? 95 : 98), `${kind}: ${c.pct} %`);
+    assert.ok(c.pct >= (FLOORS[kind] ?? 98), `${kind}: ${c.pct} % (floor ${FLOORS[kind] ?? 98})`);
   }
   assert.deepEqual(Object.keys(OVERLAY.files).filter((f) => !DATA_FILES.includes(f)), []);
   assert.equal(OVERLAY.names['琳琅诗怀雅'], 'Swire the Elegant Wit');

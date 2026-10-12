@@ -52,15 +52,17 @@ const pair = (n) => [`chess_char_1_${n}_a`, `chess_char_1_${n}_b`];
 // coverage
 
 test('tier 1: every selectable skill of every visible chess has a hand-authored spec (normal + elite)', () => {
+  // 18 = the official 16 visible T1 records + the 巴别塔 layer's 奥达 (chess_char_1_05_babel_a) and its 刺玫 elite
+  // (chess_char_1_06_babel_a) — docs/research/15-babel-bond.md §1, data/chess.json `tier === 1 && visible`
   const rep = kitCoverage({ tier: 1 });
-  assert.equal(rep.summary.chess, 16);
+  assert.equal(rep.summary.chess, 18);
   assert.equal(rep.summary.covered, rep.summary.skills, rep.chess.flatMap((r) => r.skills.filter((s) => !s.covered).map((s) => `${r.name} S${s.index + 1}`)).join(', '));
   assert.equal(rep.summary.chessFullyCovered, rep.summary.chess);
 });
 
 test('tier 1: every chess × every legal skill × module (default / none) fights 30 s with its authored spec, no content errors', () => {
   const bases = ds.chessIds().filter((id) => /^chess_char_1_\d+_a$/.test(id) && raw(id).visible);
-  assert.equal(bases.length, 16);
+  assert.equal(bases.length, 16);   // the `_\d+_a` base-id shape: 奥达 / 刺玫's 巴别塔 forms are `_1_05_babel_a` / `_1_06_babel_a`
   for (const base of bases) {
     const gold = base.replace(/_a$/, '_b');
     const opt = loadoutOptions(raw(base), raw(gold));

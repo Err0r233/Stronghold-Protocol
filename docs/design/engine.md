@@ -171,12 +171,26 @@ Profession traits (default behaviours implemented once in the engine, keyed by `
 
 Each domain file `server/sim/content/{tokens,bonds,garrisons,items,bands,enemies,bosses,devices,choices}.js` exports `install(battle)` (battle side; called once per Battle by `content/index.js → installContent`) and `registerMeta(registry)` (prep side; called once at server boot by `match/effectsMeta.js`, API documented in `docs/META.md`). Kits live one per file in `content/kits/ops/` (`export default { [baseChessId]: (bb, chess, def) => Kit }`), listed in `content/kits/index.js` (guide: `content/kits/README.md`). Content must be **data-driven from blackboards** (numbers never hard-coded when a blackboard key exists). Every effect gets at least one unit test in `test/content/*.test.js` using the `test/helpers/battleHarness.js` harness (provided by sim-core).
 
-- kits: all 112 visible chess + hidden ones used by effects (盟约·辅助干员), default skill + talents + trait specifics; tokens. The 72 non-collaboration 6★ DIY operators include 克莱门莎 (§28.1); her launch-day provisional mechanics are local to her kit. 黍 GUA-Y and 乌尔比安 CRU-Y follow the generated module blackboards and existing module-level rules (§28.2).
+- kits: all 121 visible chess + hidden ones used by effects (盟约·辅助干员), default skill + talents + trait specifics; tokens. The 66 non-collaboration 6★ DIY operators include 克莱门莎, who is a T5 shop chess since 2026-10-12 (§28.1, §29.15); her launch-day provisional mechanics are local to her kit. 黍 GUA-Y and 乌尔比安 CRU-Y follow the generated module blackboards and existing module-level rules (§28.2).
   克莱门莎 S2 removes dead, hidden, self-bound / teleport-immune and unreachable passengers before checking new
   boarding in the same tick. Each released passenger returns its current weight to the cabin's remaining budget
   and frees its slot (§28.27); neither corpses nor failed carries reserve capacity.
-- bonds: 23 (battle + meta), exact per-layer formulas from research 02.
-- garrisons: 43 effect keys (IN_BATTLE via hooks; SERVER_* via meta registry).
+- bonds: 25 (battle + meta) — the official 23 with their exact per-layer formulas from research 02, plus the maintainer's
+  自研 core bond 巴别塔 (`babelShip`, §29.15) and the 自研 **add-on** bond 元素 (`elementShip`, docs/DATA.md §19.4): the
+  latter's battle side is a third part of `server/sim/content/bonds.js` (`bonds/addon/element.js`) — 一档 on the
+  `elementHit` hook (a member's element damage ×(1 + 0.10 + 0.003·min(L, 150))), 二档 on `elementBurst` + a per-target
+  slot the `hit` handler consumes (the four burst clauses of `docs/research/17-element-bond.md` §1.2; 凋亡's slot
+  survives the whole cooldown because its damage is the engine's per-second 元素伤害 tick).
+- garrisons: 46 effect keys (IN_BATTLE via hooks; SERVER_* via meta registry) — the 承伤 / 治疗 / 伤害输出 axes of the
+  自研 巴别塔 layer add `act1autochess_gar_event_takedamage` / `_healamount` / `_dealdamage` (§29.16).
+  A row that reads the layers ("每叠加N层") fixes its OWN timing: the 作战能力 reader
+  `act1autochess_gar_eff_attrByBond` judges its step count **once per (re)deployment** — the official note
+  「※仅在每次部署时判定盟约层数」 — so a layer gain while the unit stands never refreshes its passive buff, every
+  `deploy` (redeploy, 突袭 landing, 【移动】, the elite `_b` path) judges it again and a unit that never deploys carries
+  none; its fixed `base_*` half rides the same buff, while the fixed half of a row whose official text puts it on a
+  separate `garrison_03` / `garrison_137` row is that row's own installer buff (§29.20, docs/SIM.md §2, docs/DATA.md §4).
+  The sibling readers `act1autochess_gar_eff_respawnTimeByBond` (144), `act2autochess_gar_eff_attrByBond_add_onstart`
+  (115) and `act2autochess_gar_eff_ab_damageScaleByBond` (101) carry no such note and keep following the layer gains.
   远牙's granted `garrison_108_a/b` additionally gains on both directions of `dollSwap`, sharing its deployment
   cap and active-bond checks (player-confirmed, §28.5). This extra trigger is specific to that granted trait.
 - items: 56 equipment (+golden) + 3 Arts; 变形同构体 bond grant; VI-tier set/combos.

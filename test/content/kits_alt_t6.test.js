@@ -52,7 +52,9 @@ const skillBuff = (u) => u.findBuff(`skill:${u.id}`);
 
 test('kit coverage: every selectable skill of every visible tier-6 chess is hand-authored (normal + elite, every module)', () => {
   const rep = kitCoverage({ tier: 6 });
-  assert.equal(rep.summary.chess, 19);
+  // 20 = the official 19 visible T6 records + the 巴别塔 layer's 维什戴尔 (chess_char_6_04_babel_a),
+  // docs/research/15-babel-bond.md §1
+  assert.equal(rep.summary.chess, 20);
   assert.equal(rep.summary.covered, rep.summary.skills, JSON.stringify(rep.chess.filter((r) => r.skills.some((s) => !s.covered)).map((r) => r.name)));
   for (const r of rep.chess) {
     for (const s of r.skills.filter((x) => !x.isDefault)) {

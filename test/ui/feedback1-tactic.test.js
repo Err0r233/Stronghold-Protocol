@@ -44,10 +44,12 @@ const text = (v) => [...walk(v)].flatMap((n) => (typeof n.props?.children === 's
 await data.loadAll('items', 'effects', 'choices', 'assets', 'chess', 'bonds');
 
 test('战术决策 overlay: the same card twice is two cards — own keys, same face, own selection, one taken leaves the other pickable', () => {
-  const d = generateDraft(new GameData(DATA, 'mode_multi_hard'), createRng(30), 11, { stageId: 'act1autochess_m02' });
+  // seed 41 reproduces the official match-7 composition (补给 ×2) after the ally pool grew by one card (凯尔希的盟誓,
+  // tools/content/custom.mjs): a weighted draw's stream shifts, so the seed moved from 30
+  const d = generateDraft(new GameData(DATA, 'mode_multi_hard'), createRng(41), 11, { stageId: 'act1autochess_m02' });
   assert.equal(d.family, 'tactic');
   const at = d.cards.flatMap((c, i) => (c.name === '补给' ? [i] : []));
-  assert.equal(at.length, 2, 'seed 30: 补给 twice');
+  assert.equal(at.length, 2, 'seed 41: 补给 twice');
   const [a, b] = at;
   const players = [{ playerId: 'me', seat: 0, name: 'Me' }, { playerId: 'p2', seat: 1, name: 'P2' }];
   const pub = (picks) => normalizeSp({ family: 'tactic', name: d.name, desc: d.desc, cards: d.cards.map(cardView), order: ['p2', 'me'], turn: Object.keys(picks).length ? 'me' : 'p2', picks, taken: {} }, players);

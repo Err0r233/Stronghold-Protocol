@@ -1,6 +1,7 @@
-// The 8 core bonds (server/sim/content/bonds/core.js): per-tier / per-layer formulas of research 02 §3.1–3.8 with the
-// data/bonds.json numbers, 调和 / 变形同构体 membership, live layers, inactive bonds, two players in a boss field, and
-// the 维多利亚 hammer milestone in a real match.
+// The 9 core bonds (server/sim/content/bonds/core.js): per-tier / per-layer formulas of research 02 §3.1–3.8 with the
+// data/bonds.json numbers, plus the maintainer's 自研 巴别塔 (babelShip, docs/research/15-babel-bond.md), 调和 /
+// 变形同构体 membership, live layers, inactive bonds, two players in a boss field, and the 维多利亚 hammer milestone in a
+// real match.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeBattle, chessRec, enemyRec, checkInvariants } from '../helpers/battleHarness.js';
@@ -930,7 +931,8 @@ test('卡西米尔 6: blocking members pulse 120 % ATK true damage + 0.1 s stun 
 // cross-cutting
 
 test('inactive core bonds do nothing (layers alone are not enough)', () => {
-  const bonds = ['yanShip', 'sargonShip', 'victoriaShip', 'kjeragShip', 'lateranoShip', 'egirShip', 'siracusaShip', 'kazimierzShip'];
+  // every core bond with an installer in server/sim/content/bonds/core.js: the official 8 + the 自研 巴别塔
+  const bonds = ['yanShip', 'sargonShip', 'victoriaShip', 'kjeragShip', 'lateranoShip', 'egirShip', 'siracusaShip', 'kazimierzShip', 'babelShip'];
   const list = [['all_a', bonds], ['all2_a', bonds]];
   const h = makeBattle({
     defs: defsOf(list), units: [{ chessId: 'all_a', row: 10, col: 3, items: ['test_item_a'] }, { chessId: 'all2_a', row: 10, col: 4 }],

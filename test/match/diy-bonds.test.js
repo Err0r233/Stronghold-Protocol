@@ -42,7 +42,7 @@ function deploy(h, ps, id) {
   return p;
 }
 
-test('the derived bonds of the data: each owned pick its core bonds or 协防, 煌 alone two, every prototype 协防 (read from the data)', REAL, () => {
+test('the derived bonds of the data: each owned pick its core bonds or 协防, 煌 / 真言 two, every prototype 协防 (read from the data)', REAL, () => {
   const owned = DATA.backups.diy.ownedPool; // never hard-coded: the pool changes (焰狐龙梓兰 left it as a collab operator)
   const core = new Set(Object.entries(DATA.bonds).filter(([, b]) => b && b.isCore).map(([id]) => id));
   for (const id of owned) {
@@ -51,7 +51,10 @@ test('the derived bonds of the data: each owned pick its core bonds or 协防, �
     assert.ok((b.length === 1 && b[0] === 'emptyShip') || b.every((x) => core.has(x)), `${id}: ${b.join(', ')}`);
   }
   assert.deepEqual(OPS[HUANG].bonds, ['yanShip', 'victoriaShip']);
-  assert.deepEqual(owned.filter((id) => OPS[id].bonds.length > 1), [HUANG], '煌 alone has several');
+  // two owned picks carry two core bonds: 煌 (炎 + 维多利亚, mainPower rhodes / subPower) and — since 巴别塔 is the ninth
+  // core bond with powerIdList ['babel'] (tools/content/custom.mjs) — 真言 (萨尔贡 + 巴别塔, her subPower carries both)
+  assert.deepEqual(owned.filter((id) => OPS[id].bonds.length > 1), [HUANG, 'char_4204_mantra'], '煌 and 真言 have several');
+  assert.deepEqual(OPS.char_4204_mantra.bonds, ['sargonShip', 'babelShip']);
   assert.deepEqual(OPS.char_300_phenxi.bonds, ['lateranoShip']);
   assert.deepEqual(OPS.char_4098_vvana.bonds, ['kazimierzShip']);
   assert.deepEqual(OPS[CROSLY].bonds, ['siracusaShip']);

@@ -40,6 +40,7 @@ import { bandBondIds } from '../shared/bandBonds.js';
 import { statusKey, composeUnitRecord, standInRecord, unitForm } from '../shared/standIn.js';
 import { extendedGrid } from '../shared/loadoutRecord.js';
 import { FULL_RANK, atRank, stripPotential } from '../shared/potential.js';
+import * as customContent from './content/custom.mjs';
 
 // ===== CLI & IO ==================================================================================
 
@@ -223,6 +224,17 @@ function flattenBB(list, ctxLabel = '') {
   }
   return { bb, bbStr };
 }
+/**
+ * The raw blackboard list ([{key,value,valueStr}]) of a flattened { bb, bbStr } pair — flattenBB()'s inverse. Only the
+ * 克莱门莎 records of tools/content/custom.mjs need it: those are committed *build outputs* (bb / bbStr), while the
+ * official table they are injected into holds the raw list.
+ */
+function blackboardOf(bb = {}, bbStr = {}) {
+  return [
+    ...Object.entries(bb).map(([key, value]) => ({ key, value, valueStr: null })),
+    ...Object.entries(bbStr).map(([key, valueStr]) => ({ key, value: 0, valueStr })),
+  ];
+}
 /** Format a number like the client's C#-style format strings ('0%', '0.0%', '0', '0.0'). */
 function formatValue(v, fmt) {
   if (typeof v !== 'number' || !Number.isFinite(v)) return String(v);
@@ -402,6 +414,148 @@ async function loadManifest() {
   const abs = join(ROOT, 'data', 'assets.json');
   if (!existsSync(abs)) { warn('data/assets.json not found; enemies get no attackAnim'); return null; }
   try { return JSON.parse(await readFile(abs, 'utf8')); } catch (e) { warn(`data/assets.json unreadable: ${e.message}`); return null; }
+}
+
+// ===== custom content (自研 deviations) ==========================================================
+
+/**
+ * The maintainer's research-only content: tools/content/custom.mjs. Two fiat blocks of equal standing — the 巴别塔 core
+ * bond with its 11 members and their 特质 (docs/research/15-babel-bond.md), and 克莱门莎, the 自选 operator the maintainer
+ * turned into a T5 shop chess with her official 特质 (Codex, 2026-10-12), which exists in no build source and would be
+ * dropped by every rebuild without this file. The module documents every entry and the semantics; this function is only
+ * the merge. It runs on the loaded tables BEFORE any builder and is ADD-IF-ABSENT throughout:
+ *
+ *   act.charChessDataDict / charShopChessDatas / chessNormalIdLookupDict   chess, shopRows, normalLookup, clemensa.*
+ *   act.garrisonDataDict                                                   garrisons, clemensa.garrisons
+ *   act.bondInfoDict / ac.bondInfoDict                                     bond, modeBond
+ *   act.effectInfoDataDict / effectBuffInfoDataDict                        effect, effectBuffs, effects, effectBuffsPledge
+ *   charTable                                                              characters
+ *   buildConfig's mode overlay (returned here, applied there)              modeBonds.active
+ *
+ * An id the official table already has is never overwritten: the official row wins and the build reports a `custom:`
+ * warning, so a future source update (or an official 克莱门莎 row) silently takes over. The three exceptions are arrays on
+ * official rows: the module's `chessBonds` is a UNION with the official `bondIds` (巴别塔 is only ever added to them),
+ * `bondChessIds` is the same UNION on an official bond's `chessIdList` (a fiat chess that carries an official bond must
+ * appear in that bond's member list — buildBonds derives `members` from it) and `chessGarrisons` /
+ * `elementChessGarrisons` REPLACE `garrisonIds`. `chessGarrisons` is EMPTY (华法琳's 7/14 → 4/8 cap override was
+ * withdrawn by the maintainer on 2026-10-13 — her visible T4 pair is back on its official `garrison_72_a/_b`, which
+ * grants the official `garrison_95_a/_b`, +1/+2 per skill cast and capped at 7/14); the live users are
+ * `elementChessGarrisons` (菲莱 / 烛煌 / 妮芙 / 克莱门莎, a design decision, not a patch). A chess's DEFAULT SKILL is a
+ * scalar on its own shop row and needs no exception: the 自研 rows carry it in `custom.mjs` (`members` `skill`,
+ * 珊比's / 克莱门莎's `shopRows`), the official chess of the same batch already carry theirs.
+ * `characters` is add-if-absent for the ROW, with field-level corrections of an official row where the module lists a
+ * differing value (克莱门莎's `appellation`) — both reported. `--no-research` skips the whole layer, like every other
+ * research-derived field.
+ * @param {object} ctx loadContext() result (mutated)
+ * @returns {{modeActiveBonds: string[]}} the mode overlay for buildConfig
+ */
+function applyCustom(ctx) {
+  const modeActiveBonds = [];
+  if (OPTS.noResearch) return { modeActiveBonds };
+  const { act, ac, charTable } = ctx;
+  const c = customContent;
+
+  /** Merge rows of an official id-keyed dict, first (official) occurrence wins. */
+  const addDictRows = (dict, rows, label) => {
+    for (const [id, row] of Object.entries(rows || {})) {
+      if (dict[id]) { warn(`custom: ${label} ${id} is already in the official data (custom row skipped)`); continue; }
+      dict[id] = row;
+    }
+  };
+  /** Add to a field that is a LIST on an official row — a UNION, only ever adding what is missing. */
+  const addListValues = (dict, values, field, label) => {
+    for (const [id, list] of Object.entries(values || {})) {
+      const rec = dict[id];
+      if (!rec) { warn(`custom: ${label} ${id} is not in the official data (nothing to extend)`); continue; }
+      const missing = (list || []).filter((x) => !(rec[field] || []).includes(x));
+      if (missing.length) rec[field] = [...(rec[field] || []), ...missing];
+    }
+  };
+  /** Replace a field that is a LIST on an official row (the one documented exception, 华法琳's `garrisonIds`). */
+  const setListValues = (dict, values, field, label) => {
+    for (const [id, list] of Object.entries(values || {})) {
+      const rec = dict[id];
+      if (!rec) { warn(`custom: ${label} ${id} is not in the official data (nothing to set)`); continue; }
+      if (isDeepStrictEqual(rec[field] || [], list)) { warn(`custom: ${label} ${id} already carries ${JSON.stringify(list)} (nothing to do)`); continue; }
+      rec[field] = [...(list || [])];
+    }
+  };
+  /**
+   * A character record. Add-if-absent applies to the ROW: a character the official table does not have is inserted
+   * whole (阿米娅·医疗). One it does have keeps its official row, except for fields the module lists explicitly — those
+   * are deliberate corrections of a shipped operator and are applied with a report line (克莱门莎's `appellation`, which
+   * upstream spells "Clementia").
+   */
+  const addCharacter = (charId, char) => {
+    const existing = charTable[charId];
+    if (!existing) { charTable[charId] = char; return; }
+    const filled = [];
+    const overridden = [];
+    for (const [k, v] of Object.entries(char)) {
+      if (existing[k] === undefined || existing[k] === null) { existing[k] = v; filled.push(k); }
+      else if (!isDeepStrictEqual(existing[k], v)) { existing[k] = v; overridden.push(`${k}=${JSON.stringify(v)}`); }
+    }
+    if (overridden.length) warn(`custom: character ${charId} is in the official data; the custom values replaced ${overridden.join(', ')}`);
+    else warn(`custom: character ${charId} is already in the official data (only missing fields filled: ${filled.join(', ') || 'none'})`);
+  };
+
+  addDictRows(act.bondInfoDict, c.bond, 'bond');
+  addDictRows(ac.bondInfoDict ?? (ac.bondInfoDict = {}), c.modeBond, 'bond tag');
+  // 元素 (elementShip, docs/research/17-element-bond.md §1): the maintainer's 自研 ADD-ON bond — a second bond block,
+  // named apart from 巴别塔's so either can be dropped without touching the other.
+  addDictRows(act.bondInfoDict, c.elementBond, 'element bond');
+  addDictRows(ac.bondInfoDict ?? (ac.bondInfoDict = {}), c.elementModeBond, 'element bond tag');
+  addDictRows(act.effectInfoDataDict, c.effect, 'effect');
+  addDictRows(act.effectBuffInfoDataDict ?? (act.effectBuffInfoDataDict = {}), c.effectBuffs, 'effect buff');
+  addDictRows(act.effectInfoDataDict, c.elementEffect, 'element bond effect');
+  addDictRows(act.effectBuffInfoDataDict ?? (act.effectBuffInfoDataDict = {}), c.elementEffectBuffs, 'element bond effect buff');
+  // The 机变「盟誓」card (docs/research/15-babel-bond.md §6.3 item 4): ONE BUFF_GAIN effect, exactly the official
+  // `allybuff_select_2_*` shape — buildChoices turns it into a `cards.tactic` entry and the match's generic
+  // `global_special_choice_bond_addlayer` handler applies it, so no other table is involved.
+  addDictRows(act.effectInfoDataDict, c.effects, '机变 choice effect');
+  addDictRows(act.effectBuffInfoDataDict ?? (act.effectBuffInfoDataDict = {}), c.effectBuffsPledge, '机变 choice effect buff');
+  addDictRows(act.garrisonDataDict, c.garrisons, 'garrison');
+  addDictRows(act.garrisonDataDict, c.elementGarrisons, 'element garrison');
+  for (const [id, row] of Object.entries(c.clemensa?.garrisons || {})) {
+    // The 克莱门莎 records are the committed build outputs (desc / bb / bbStr); the table holds the raw blackboard list.
+    const { bb, bbStr, ...rest } = row;
+    addDictRows(act.garrisonDataDict, { [id]: { ...rest, garrisonDesc: rest.desc, blackboard: blackboardOf(bb, bbStr) } }, '克莱门莎 garrison');
+  }
+  addDictRows(act.charChessDataDict, c.chess, 'chess');
+  addDictRows(act.charChessDataDict, c.elementChess, 'element chess');
+  addDictRows(act.charChessDataDict, c.clemensa?.chess, '克莱门莎 chess');
+  addDictRows(act.charShopChessDatas, c.shopRows, 'chess shop row');
+  addDictRows(act.charShopChessDatas, c.elementShopRows, 'element chess shop row');
+  addDictRows(act.charShopChessDatas, c.clemensa?.shopRows, '克莱门莎 chess shop row');
+  addDictRows(act.chessNormalIdLookupDict, c.normalLookup, 'chess normal lookup');
+  addDictRows(act.chessNormalIdLookupDict, c.elementNormalLookup, 'element chess normal lookup');
+  addDictRows(act.chessNormalIdLookupDict, c.clemensa?.normalLookup, '克莱门莎 chess normal lookup');
+  // The 自研 专属装备 (docs/research/15-babel-bond.md §6.4): an item is four tables — the trap chess rows
+  // (trapChessDataDict), their shop rows (trapShopChessDatas), their effects (effectInfoDataDict /
+  // effectBuffInfoDataDict, merged like every other effect above) and the ITEM's trap character record
+  // (character_table, add-if-absent through addCharacter below — buildItems reads the item's `name` from it and the
+  // client draws the item card / board token from the charId). docs/research/04-items.json is the fifth, optional one:
+  // buildItems reads its category / kind / implFormula / flavor / rangeGrid as the 04 annotation, so the same rows are
+  // merged into ctx.research.items (`researchItems` in custom.mjs).
+  addDictRows(act.trapChessDataDict, c.items, 'item');
+  addDictRows(act.trapShopChessDatas, c.itemShopRows, 'item shop row');
+  addDictRows(act.effectInfoDataDict, c.itemEffects, 'item effect');
+  addDictRows(act.effectBuffInfoDataDict ?? (act.effectBuffInfoDataDict = {}), c.itemEffectBuffs, 'item effect buff');
+  if (ctx.research.items && c.researchItems?.length) {
+    for (const row of c.researchItems) {
+      if (ctx.research.items.items.some((x) => x.id === row.id)) { warn(`custom: item research entry ${row.id} is already in docs/research/04-items.json (custom row skipped)`); continue; }
+      ctx.research.items.items.push(row);
+    }
+  }
+  for (const [charId, char] of Object.entries(c.itemTraps || {})) addCharacter(charId, char);
+  for (const [charId, char] of Object.entries(c.characters || {})) addCharacter(charId, char);
+  addListValues(act.charChessDataDict, c.chessBonds, 'bondIds', 'custom bond on chess');
+  addListValues(act.charChessDataDict, c.elementChessBonds, 'bondIds', 'element bond on chess');
+  addListValues(act.bondInfoDict, c.bondChessIds, 'chessIdList', 'custom member on bond');
+  setListValues(act.charChessDataDict, c.chessGarrisons, 'garrisonIds', 'custom garrison on chess');
+  setListValues(act.charChessDataDict, c.elementChessGarrisons, 'garrisonIds', 'element garrison on chess');
+  for (const id of c.modeBonds?.active || []) modeActiveBonds.push(id);
+  return { modeActiveBonds };
 }
 
 // ===== shared game-object helpers ===============================================================
@@ -1043,6 +1197,11 @@ function buildChess(ctx) {
 
     // Selectable modules of the golden chess (DESIGN §16): every ADVANCED uniequip of the character
     // (INITIAL = "no module") at the chess equipLevel, plus the no-module base the choices apply to.
+    // The fields exist only at `equipLevel > 0` (docs/DATA.md §2.2; checkUnitFormParity and data/backups.json's unit
+    // forms enforce the same gate): an elite with no module at all — the 自研 members of tools/content/custom.mjs,
+    // `status.equipLevel` 0, `module` null — carries NONE of them, so `loadoutOptions` labels its single choice 'none'
+    // while `resolveRecordLoadout` (shared/loadoutRecord.js) keys on the array and answers null. Both mean "no module"
+    // and resolve to the same def (server/sim/simdata.js getChess).
     const moduleAlts = [];
     if (isGolden && equipLevel > 0) {
       rec.statsBase = statsFrom(attrs, {});
@@ -1933,11 +2092,19 @@ function buildBonds(ctx, chess, effects) {
 /**
  * Build data/garrisons.json: every garrison referenced by season chess (plus garrisons referenced
  * from other garrisons' blackboards, transitively).
+ *
+ * `garrisonKeep` (tools/content/custom.mjs) adds ids no chess names any more. A 自研 trait that REPLACES an official
+ * one (`elementChessGarrisons`: 菲莱 43 → 175, 烛煌 35 → 176, 妮芙 56 → 177, 克莱门莎 161 → 178) leaves the official
+ * row unreferenced, and this builder would silently drop it — but it is a shipped record other consumers read by id
+ * (the prep-side meta registry, `test/content/garrisons_battle.test.js`'s per-effect-key sweeps, the 魔王 顺位 case that
+ * fields 菲莱's row as a side operator). Those rows therefore stay, with an empty `owners` — the orphan shape the
+ * dataset already carries for the halves of a granting pair (29 / 95 / 96 / 108 / 117_b).
  */
 function buildGarrisons(ctx, chess) {
   const dict = ctx.act.garrisonDataDict;
   const wanted = new Set();
   for (const c of Object.values(chess)) for (const g of c.garrisonIds) wanted.add(g);
+  for (const id of customContent.garrisonKeep || []) if (dict[id]) wanted.add(id);
   const queue = [...wanted];
   while (queue.length) {
     const id = queue.pop();
@@ -3560,8 +3727,12 @@ function enemyScaleFor(table, type, difficulty, round, isHidden) {
 /**
  * Build data/config.json: modes (rounds, timers, shop, enemy scaling), economy, bans, timers,
  * titles, tips, broadcasts, trophies and other global tunables.
+ * `extraActiveBonds` (the maintainer's custom content, tools/content/custom.mjs) is appended to every mode's
+ * `activeBondIds`: the official mode tables list only the 23 official bonds, and a fan core bond no mode names has to
+ * be switched on here or no match could ever draw it. `inactiveBondIds` stays the official set — it is the 「本局禁用」
+ * list the 巴别塔 rider counts against (docs/research/15-babel-bond.md §1 OPEN-1).
  */
-function buildConfig(ctx, waves, stages, bands, chess, items) {
+function buildConfig(ctx, waves, stages, bands, chess, items, extraActiveBonds = []) {
   const { act, ac } = ctx;
   // Original experiment: 路标档案馆, BV1eLXXBqEgF (2026-03-29), 0:30 / 1:30 / 2:00.
   // These are concurrent stock counts, not limits on appearances or total purchases during a match.
@@ -3623,7 +3794,8 @@ function buildConfig(ctx, waves, stages, bands, chess, items) {
       color: `#${String(m.modeColor || '').replace(/^#/, '')}`, iconId: m.modeIconId, backgroundId: m.backgroundId || null,
       desc: m.desc, effectDescList: m.effectDescList || [], unlockText: m.unlockText || null,
       specialPhaseTime: m.specialPhaseTime,
-      activeBondIds: m.activeBondIdList || [], inactiveBondIds: m.inactiveBondIdList || [], inactiveEnemyKeys: m.inactiveEnemyKey || [],
+      activeBondIds: [...(m.activeBondIdList || []), ...extraActiveBonds.filter((b) => !(m.activeBondIdList || []).includes(b))],
+      inactiveBondIds: m.inactiveBondIdList || [], inactiveEnemyKeys: m.inactiveEnemyKey || [],
       lastRound, bossRound, hiddenRound,
       rounds, spRounds: roundNums.filter((r) => rounds[r].isSpPrepare),
       combatTimeLimit, enemyScale,
@@ -3881,9 +4053,19 @@ function validateAll(f) {
     bad.slice(0, 5).forEach((p) => err(`non-finite number at ${p}`));
   }
   const visible = Object.values(chess).filter((c) => !c.isGolden && c.visible);
-  if (Object.keys(bonds).length !== 23) err(`expected 23 bonds, got ${Object.keys(bonds).length}`);
+  // The official tables have 23 bonds and 112 visible non-DIY chess; tools/content/custom.mjs (the maintainer's fiat
+  // layer) adds the rows below on top. The expected counts track the LENGTH of that layer rather than a fixed number,
+  // so adding a member stays a one-file change. The two blocks of the module are counted separately: 巴别塔's `chess`
+  // (whose visible rows are a member list, plus 克莱门莎 as the one fixed addition not driven by one) and 元素's
+  // `elementChess` (珊比's promotion — she has no `chess` entry, because she was a 自选 pick rather than a 巴别塔
+  // member, so her block carries the visible count as it is).
+  const customBondCount = Object.keys(customContent.bond || {}).length + Object.keys(customContent.elementBond || {}).length;
+  const customVisibleChess = Object.values(customContent.chess || {})
+    .filter((r) => !r.isGolden && !r.isHidden).length + 1
+    + Object.values(customContent.elementChess || {}).filter((r) => !r.isGolden && !r.isHidden).length;
+  if (Object.keys(bonds).length !== 23 + customBondCount) err(`expected ${23 + customBondCount} bonds, got ${Object.keys(bonds).length}`);
   if (Object.keys(bands).length !== 40) err(`expected 40 bands, got ${Object.keys(bands).length}`);
-  if (visible.length !== 112) err(`expected 112 visible non-DIY chess, got ${visible.length}`);
+  if (visible.length !== 112 + customVisibleChess) err(`expected ${112 + customVisibleChess} visible non-DIY chess, got ${visible.length}`);
   for (const c of Object.values(chess)) {
     if (!chess[c.baseId]) err(`chess ${c.chessId}: baseId missing`);
     if (c.goldenId && !chess[c.goldenId]) err(`chess ${c.chessId}: goldenId missing`);
@@ -4067,6 +4249,10 @@ function validateAll(f) {
 async function main() {
   const t0 = Date.now();
   const ctx = await loadContext();
+  // the maintainer's fiat content (tools/content/custom.mjs) merges into the loaded tables before any builder: the
+  // 巴别塔 bond + effect with its members' chess / shop rows / 特质, 克莱门莎's fiat chess + 特质, 阿米娅·医疗's
+  // synthesized character record, and the official rows the module extends (the members' bonds, 华法琳's trait)
+  const { modeActiveBonds } = applyCustom(ctx);
   log('building…');
   // one pass of the operator builders per potential rank (潜能 1–6, ctx.potRank): the full-potential pass is the data,
   // annotated below with what every lower rank changes (attachPotential)
@@ -4093,7 +4279,7 @@ async function main() {
   // the bonds each strategy is built around (DESIGN §21.26): the bot skips, and the strategy draft marks 本局禁用, a band
   // whose bond the mode switches off
   for (const b of Object.values(bands)) b.bondIds = bandBondIds(b, { bonds, pools: choices.pools });
-  const config = buildConfig(ctx, waves, stages, bands, chess, items);
+  const config = buildConfig(ctx, waves, stages, bands, chess, items, modeActiveBonds);
   const files = { config, chess, bonds, garrisons, items, bands, effects, choices, enemies, factions, waves, stages, bosses, tokens, backups };
 
   // the unit forms rebuild every PRESET chess at every rank (before the annotation: each pass as built)

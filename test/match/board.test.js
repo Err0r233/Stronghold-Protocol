@@ -117,9 +117,8 @@ test('g.move to the hand: withdraw, full-hand swap with a chess, hand↔hand swa
   const { m, ps } = prepMatch();
   const ids = chessOfTier(1).filter((x) => m.pool.has(x));
   const onBoard = give(m, ps, ids[0], 'board', [9, 3]);
-  // fill the hand with 9 chess + 1 item
-  const handChess = [];
-  for (let i = 1; i <= 9; i++) handChess.push(give(m, ps, ids[i]));
+  // fill the hand with 9 chess + 1 item (the uids are looked up in the hand later, never by slot)
+  for (let i = 1; i <= 9; i++) give(m, ps, ids[i]);
   const item = giveItem(m, ps, 'chess_item_1_01_e_a');
   assert.equal(ps.hand.filter(Boolean).length, 10);
   // hand full: withdraw onto an empty slot impossible → onto a chess = swap (if the chess is legal on the tile)
@@ -136,11 +135,18 @@ test('g.move to the hand: withdraw, full-hand swap with a chess, hand↔hand swa
   assert.deepEqual(m.handle('p_0', { t: 'g.move', uid: boardPiece.uid, to: { area: 'hand', idx: itemIdx } }), { error: ERR.HAND_FULL });
   // items cannot be placed on the board but can move inside the hand
   assert.deepEqual(m.handle('p_0', { t: 'g.move', uid: item.uid, to: { area: 'board', row: 9, col: 4 } }).error, ERR.BAD_TARGET);
-  const other = handChess[0];
-  const oi = ps.hand.findIndex((p) => p && p.uid === other.uid);
+  // A hand↔hand swap of the item with a chess. The partner is looked up by its uid among the chess ACTUALLY in the
+  // hand, at a non-zero index — never assumed to be `handChess[0]`: the withdraw above put that piece on the board when
+  // the swap target was slot 0 (its uid is then not in the hand at all, and a stale findIndex yields -1, i.e. a
+  // BAD_TARGET that says nothing about the move rule this test is about).
+  const itemIdxNow = ps.hand.findIndex((p) => p && p.uid === item.uid);
+  const oi = ps.hand.findIndex((p, i) => i > 0 && p && p.kind === 'chess' && p.uid !== item.uid);
+  assert.ok(itemIdxNow > 0, `the item holds a non-zero hand slot (${itemIdxNow})`);
+  assert.ok(oi > 0, `a chess sits in the hand at a non-zero slot (${oi})`);
+  const other = ps.hand[oi];
   assert.deepEqual(m.handle('p_0', { t: 'g.move', uid: item.uid, to: { area: 'hand', idx: oi } }), { ok: true });
   assert.equal(ps.hand[oi].uid, item.uid);
-  assert.equal(ps.hand[itemIdx].uid, other.uid);
+  assert.equal(ps.hand[itemIdxNow].uid, other.uid);
   // bad inputs
   assert.equal(m.handle('p_0', { t: 'g.move', uid: 999999, to: { area: 'hand', idx: 0 } }).error, ERR.BAD_TARGET);
   assert.equal(m.handle('p_0', { t: 'g.move', uid: item.uid, to: { area: 'hand', idx: 10 } }).error, ERR.BAD_TARGET);

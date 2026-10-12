@@ -330,7 +330,8 @@ test('economy: a held pair is completed — bought when affordable, else the sho
   m.dispose();
 });
 
-test('坎诺特 (利滚利: leftover funds are kept, +1 at ≥ 5): with a full board the bot banks its interest capital instead of refreshing it away', () => {
+test('坎诺特 (利滚利: leftover funds are kept, +1 at ≥ 5): with a full collection the bot banks its interest capital — no refresh and no purchase that completes nothing takes it under 5', () => {
+  const CAPITAL = 5; // coin_carry_over bb.capital (bot.js fundsReserve)
   let checked = 0;
   for (const seed of [5, 7, 9]) {
     const h = soloBot({ seed }).start();
@@ -342,20 +343,40 @@ test('坎诺特 (利滚利: leftover funds are kept, +1 at ≥ 5): with a full b
     ps.bandId = 'band_cannot';
     assert.ok(m.gd.leftoverKeptBands.includes(ps.bandId));
     ps.funds = 14;
-    const merges = ps.stats.merges;
-    // the level-up on the curve is paid for first (its price depends on the rounds the run levelled at: 9 or 10 here);
-    // after it the bot buys / refreshes nothing that takes it under the 5 capital
-    const level0 = ps.shop.level, price0 = ps.shop.upgradePrice;
+    // The guarantee, watched on every spend of the prep instead of on one end-of-prep number: the 利滚利 capital is what
+    // the bot holds back from refreshes and from purchases that complete nothing (bot.js buyLoopSteps / fundsReserve,
+    // `boardFull` = the collection is at its deploy cap). Two spends may take it under: a merge — a chess OR an item one
+    // ("a merge may spend the reserve", the same exception the chess-merge arm of the guard has) — and the level-up on
+    // the curve (LEVEL_TARGET is paid for before the interest). The old form read only the end-of-prep funds and excused
+    // chess merges alone, so it depended on the shop draw: in R7 of seed 7 the bot now completes an ITEM merge for 1
+    // fund and the assertion went red although nothing the band promises was broken. The 0.2.4 「元素」 bond joined the
+    // per-match ban draw (pool.js drawDisabledBonds shuffles `eligible` with the match rng), so every seed's shop stream
+    // shifted by one candidate of weight 10 — a reseed would only hide the next such drift.
+    const spends = [];
+    const wrap = (kind, fn, detail = () => null) => (...args) => {
+      const before = ps.funds;
+      const full = ps.allChess().length >= ps.deployCap; // the reserve only governs a full collection
+      const what = detail(...args);
+      const r = fn(...args);
+      if (ps.funds < before) spends.push({ kind, what, full, after: ps.funds });
+      return r;
+    };
+    ps.buy = wrap('buy', ps.buy.bind(ps), (i) => {
+      const s = ps.shop.slots[i];
+      return s && { id: s.id, merge: ps.completesChessMerge(s.id) || ps.completesItemMerge(s.id) };
+    });
+    ps.refresh = wrap('refresh', ps.refresh.bind(ps));
+    ps.levelUp = wrap('levelUp', ps.levelUp.bind(ps));
     h.run(() => m.phase === PHASE.COMBAT && m.round === 7);
-    // (a merge may spend the reserve)
-    if (ps.stats.merges === merges) {
-      checked++;
-      const afterLevelUp = 14 - (ps.shop.level > level0 ? price0 : 0);
-      assert.ok(ps.funds >= Math.min(5, afterLevelUp), `seed ${seed}: ${ps.funds} funds banked (${afterLevelUp} after the level-up)`);
+    for (const s of spends) {
+      if (!s.full || s.kind === 'levelUp' || s.what?.merge) continue;
+      assert.ok(s.after >= CAPITAL, `seed ${seed}: ${s.kind}${s.what ? ` ${s.what.id}` : ''} left ${s.after} funds, under the ${CAPITAL} capital`);
     }
+    assert.ok(spends.length, `seed ${seed}: the prep spent something`);
+    checked++;
     m.dispose();
   }
-  assert.ok(checked >= 2, `${checked} preps without a merge`);
+  assert.equal(checked, 3);
 });
 
 test('bond plan: a teammate\'s main core bond (its bond strip — a human\'s too) counts against the bot\'s focus (the shop pool is shared)', () => {

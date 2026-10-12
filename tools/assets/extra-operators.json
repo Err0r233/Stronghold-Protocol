@@ -1,0 +1,194 @@
+{
+  "about": "Operators the asset plan needs that neither the act2 chess pool of docs/research/07-assets.json nor the 自选 owned-6★ pool (data/backups.json units) lists: the 巴别塔 core-bond roster of docs/research/15-babel-bond.md (暴行 char_230_savage, 奥达 char_4131_odda, 阿米娅·医疗 char_1037_amiya3), the operators OPEN-4 promoted out of the 自选 pool into visible 「巴别塔」 shop chess — 阿斯卡纶 char_4132_ascln, 可露希尔 char_4228_closur, 赫德雷 char_4088_hodrer, 逻各斯 char_4133_logos, 维什戴尔 char_1035_wisdel — the 「元素」 add-on bond's promoted T4 shop chess 珊比 char_4235_thumpy (docs/research/17-element-bond.md §3), plus 克莱门莎 char_4231_clemnt, a visible T5 chess research 07 does not list. A chess that research 07 does not carry MUST be registered here: once an operator leaves the 自选 pool (data/backups.json units / ownedPool) nothing else names it, so a manifest rebuild would drop every one of its assets and the shrink guard would be the only thing keeping them (docs/ASSETS.md, third source). Consumed by tools/fetch-assets.mjs dataExtras() as extraOperators; URLs follow the research 07 patterns (tools/assets/plan.mjs patternOperator) and may be overridden per record (avatar/portrait). Values resolved from the official zh_CN character_table.json / skill_table.json unless noted.",
+  "operators": {
+    "char_4132_ascln": {
+      "name": "阿斯卡纶",
+      "subProfessionId": "stalker",
+      "nationId": "rhodes",
+      "skills": [
+        { "index": 0, "skillId": "skchr_ascln_1", "iconId": "skchr_ascln_1" },
+        { "index": 1, "skillId": "skchr_ascln_2", "iconId": "skchr_ascln_2" },
+        { "index": 2, "skillId": "skchr_ascln_3", "iconId": "skchr_ascln_3" }
+      ],
+      "_note": "chess_char_3_05_babel_a/_b (tools/content/custom.mjs)：2026-10-12 由 自选 转正为可见 T3 商店棋，因此离开 backups.json 的 ownedPool；官方 charEquip 有两个 ADVANCED 模组 uniequip_002_ascln (AMB-X, 默认) / uniequip_003_ascln (AMB-Y)。"
+    },
+    "char_4228_closur": {
+      "name": "可露希尔",
+      "subProfessionId": "tactician",
+      "nationId": "rhodes",
+      "skills": [
+        { "index": 0, "skillId": "skchr_closur_1", "iconId": "skchr_closur_1" },
+        { "index": 1, "skillId": "skchr_closur_2", "iconId": "skchr_closur_2" },
+        { "index": 2, "skillId": "skchr_closur_3", "iconId": "skchr_closur_3" }
+      ],
+      "_note": "chess_char_3_06_babel_a/_b：同上（T3 转正）；默认 ADVANCED 模组 uniequip_002_closur (TAC-X)。她的召唤物 token_10066_closur_ourbase 由 data/tokens.json 覆盖，不走这里。"
+    },
+    "char_4088_hodrer": {
+      "name": "赫德雷",
+      "subProfessionId": "crusher",
+      "nationId": null,
+      "skills": [
+        { "index": 0, "skillId": "skchr_hodrer_1", "iconId": "skchr_hodrer_1" },
+        { "index": 1, "skillId": "skchr_hodrer_2", "iconId": "skchr_hodrer_2" },
+        { "index": 2, "skillId": "skchr_hodrer_3", "iconId": "skchr_hodrer_3" }
+      ],
+      "_note": "chess_char_5_06_babel_a/_b：同上（T5 转正）；nationId 官方为 null（无阵营），默认 ADVANCED 模组 uniequip_002_hodrer (CRU-X) / uniequip_003_hodrer (CRU-Y)。"
+    },
+    "char_4133_logos": {
+      "name": "逻各斯",
+      "subProfessionId": "corecaster",
+      "nationId": "rhodes",
+      "skills": [
+        { "index": 0, "skillId": "skchr_logos_1", "iconId": "skchr_logos_1" },
+        { "index": 1, "skillId": "skchr_logos_2", "iconId": "skchr_logos_2" },
+        { "index": 2, "skillId": "skchr_logos_3", "iconId": "skchr_logos_3" }
+      ],
+      "_note": "chess_char_5_07_babel_a/_b：同上（T5 转正）；默认 ADVANCED 模组 uniequip_002_logos (CCR-D) / uniequip_003_logos (CCR-Y)。"
+    },
+    "char_1035_wisdel": {
+      "name": "维什戴尔",
+      "subProfessionId": "bombarder",
+      "nationId": null,
+      "skills": [
+        { "index": 0, "skillId": "skchr_wisdel_1", "iconId": "skchr_wisdel_1" },
+        { "index": 1, "skillId": "skchr_wisdel_2", "iconId": "skchr_wisdel_2" },
+        { "index": 2, "skillId": "skchr_wisdel_3", "iconId": "skchr_wisdel_3" }
+      ],
+      "_note": "chess_char_6_04_babel_a/_b：同上（T6 转正）；nationId 官方为 null，默认 ADVANCED 模组 uniequip_002_wisdel (BOM-X)。她的召唤物 token_10035_wisdel_wward 由 data/tokens.json 覆盖。"
+    },
+    "char_230_savage": {
+      "name": "暴行",
+      "subProfessionId": "centurion",
+      "nationId": "rim",
+      "skills": [
+        {
+          "index": 0,
+          "skillId": "skchr_savage_1",
+          "iconId": "skcom_powerstrike[2]"
+        },
+        {
+          "index": 1,
+          "skillId": "skchr_savage_2",
+          "iconId": "skchr_savage_2"
+        }
+      ]
+    },
+    "char_4131_odda": {
+      "name": "奥达",
+      "subProfessionId": "hammer",
+      "nationId": "rhodes",
+      "skills": [
+        {
+          "index": 0,
+          "skillId": "skchr_odda_1",
+          "iconId": "skchr_odda_1"
+        },
+        {
+          "index": 1,
+          "skillId": "skchr_odda_2",
+          "iconId": "skchr_odda_2"
+        }
+      ]
+    },
+    "char_4231_clemnt": {
+      "name": "克莱门莎",
+      "subProfessionId": "primguard",
+      "nationId": "egir",
+      "skills": [
+        {
+          "index": 0,
+          "skillId": "skchr_clemnt_1",
+          "iconId": "skchr_clemnt_1"
+        },
+        {
+          "index": 1,
+          "skillId": "skchr_clemnt_2",
+          "iconId": "skchr_clemnt_2"
+        },
+        {
+          "index": 2,
+          "skillId": "skchr_clemnt_3",
+          "iconId": "skchr_clemnt_3"
+        }
+      ]
+    },
+    "char_4235_thumpy": {
+      "name": "珊比",
+      "subProfessionId": "primprotector",
+      "nationId": "rim",
+      "skills": [
+        {
+          "index": 0,
+          "skillId": "skchr_thumpy_1",
+          "iconId": "skchr_thumpy_1"
+        },
+        {
+          "index": 1,
+          "skillId": "skchr_thumpy_2",
+          "iconId": "skchr_thumpy_2"
+        },
+        {
+          "index": 2,
+          "skillId": "skchr_thumpy_3",
+          "iconId": "skchr_thumpy_3"
+        }
+      ],
+      "_note": "chess_char_4_27_a/_b (tools/content/custom.mjs elementChess)：2026-10-12 由 自选 6★ 转正为可见 T4 商店棋（「元素」附加盟约，docs/research/17-element-bond.md §3），因此离开 backups.json 的 ownedPool / units。她是唯一一个「自选转正」后原本只被自选池点名的干员——不在这里登记，清单重建会整块丢掉她的头像/立绘/两套 Spine/技能图标/SFX/语音（docs/ASSETS.md 第三节）。默认 ADVANCED 模组 uniequip_002_thumpy (PRP-X 出发的勇气)，与菲莱 / 余 同为 PRP-X；她的棋子行 defaultUniEquipId 为 null，只取模组属性、不挂模组阶段。"
+    },
+    "char_1037_amiya3": {
+      "name": "阿米娅·医疗",
+      "subProfessionId": "incantationmedic",
+      "nationId": "rhodes",
+      "skills": [
+        {
+          "index": 0,
+          "skillId": "skchr_amiya3_1",
+          "iconId": "skchr_amiya3_1"
+        },
+        {
+          "index": 1,
+          "skillId": "skchr_amiya3_2",
+          "iconId": "skchr_amiya3_2"
+        }
+      ],
+      "_note": "PRTS 阿米娅(医疗) 确认：干员id char_1037_amiya3、5★ 医疗·咒愈师（incantationmedic）、远程位、攻击范围 3-1/3-3、天赋诚挚期许、技能1 哀恸共情（skchr_amiya3_1，技能表 duration 50 与 PRTS 一致）、技能2 慈悲愿景（skchr_amiya3_2，duration 32，整场战斗只能释放一次）、模组 uniequip_001_amiya3 / uniequip_002_amiya3（INC-X）。官方 zh_CN character_table.json 未收录该形态（升变形态），故 subProfessionId/技能由 PRTS + skill_table.json 解析；图包只有 E2 头像与 E2 立绘，E0–E1 两张缺失，故把 e0e1 指向 _2 文件。",
+      "avatar": {
+        "e0e1": {
+          "url": "https://raw.githubusercontent.com/yuanyan3060/ArknightsGameResource/main/avatar/char_1037_amiya3_2.png"
+        }
+      },
+      "portrait": {
+        "e0e1": {
+          "url": "https://raw.githubusercontent.com/yuanyan3060/ArknightsGameResource/main/portrait/char_1037_amiya3_2.png"
+        }
+      },
+      "voice": {
+        "base": "https://torappu.prts.wiki/assets/audio/",
+        "_note": "官方 voice dump（ArknightsAssets2）没有升变形态的语音；维护者 2026-10-12 指定改用 PRTS 的 torappu 资源站。槽位与 voiceId 取自 PRTS 语音记录页（阿米娅(医疗)/语音记录）。",
+        "slots": {
+          "start": "CN_019",
+          "faceEnemy": "CN_020",
+          "select": [
+            "CN_021",
+            "CN_022"
+          ],
+          "place": [
+            "CN_023",
+            "CN_024"
+          ],
+          "skill1": "CN_025",
+          "skill2": "CN_026",
+          "skill3": "CN_027",
+          "skill4": "CN_028",
+          "resultFour": "CN_029",
+          "resultThree": "CN_030",
+          "resultTwo": "CN_031",
+          "resultLose": "CN_032",
+          "gacha": "CN_011",
+          "squad": "CN_017",
+          "squadFirst": "CN_018"
+        }
+      }
+    }
+  }
+}

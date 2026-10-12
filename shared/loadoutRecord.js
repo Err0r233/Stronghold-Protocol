@@ -17,7 +17,8 @@ import { atPotential, isPotential, POTENTIAL_DEFAULT } from './potential.js';
  * @param {{ skillIndex?: number, moduleId?: string, skill?: number, module?: string, potential?: number }|null} [loadout]
  * @returns {{ skillIndex: number|null, moduleId: string|null, potential: number, skillIsDefault: boolean,
  *             moduleIsDefault: boolean, potentialIsDefault: boolean, isDefault: boolean }|null} null without a record;
- *             `moduleId` null for chess without module choices
+ *             `moduleId` null for chess without module choices (a normal chess, or an elite the data gives no
+ *             `modules` array — `equipLevel` 0, docs/DATA.md §2.2)
  */
 export function resolveRecordLoadout(rec, loadout = null) {
   if (!rec || typeof rec !== 'object') return null;

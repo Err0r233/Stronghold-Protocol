@@ -174,16 +174,21 @@ export function resolveProxyPrefix(source, offline = false, value = process.env.
 }
 
 /**
- * What data/backups.json and data/chess.json add to the asset plan: `extraOperators` — every unit of backups.json
+ * What data/backups.json, data/chess.json and tools/assets/extra-operators.json add to the asset plan:
+ * `extraOperators` — every unit of backups.json
  * (`{ name, subProfessionId, nationId, skills: [{ index, skillId, iconId }] }`; buildPlan plans those research 07 lacks,
- * the 自选 owned-6★ picks), `tokenIds` — the summons of the 自选 picks (backups.json `tokens`), `moduleTypes` — the type
- * icon of every module a chess or a unit form offers.
+ * the 自选 owned-6★ picks) plus the hand-maintained extras of that file, `tokenIds` — the summons of the 自选 picks
+ * (backups.json `tokens`), `moduleTypes` — the type icon of every module a chess or a unit form offers.
  * @param {any} backups data/backups.json (or null)
  * @param {any} chess data/chess.json (or null)
+ * @param {any} [extra] tools/assets/extra-operators.json (or null): operators neither the chess pool nor the
+ *   自选 owned-6★ pool lists — currently the three the 巴别塔 core-bond roster needs (暴行 / 奥达 / 阿米娅).
+ *   Hand-maintained, shaped like the records built below; a pool unit of the same id wins.
  */
-export function dataExtras(backups, chess) {
+export function dataExtras(backups, chess, extra = null) {
   const extraOperators = {};
   const moduleTypes = new Set();
+  for (const [id, o] of Object.entries(extra?.operators || {})) if (o && typeof o === 'object') extraOperators[id] = o;
   for (const [id, u] of Object.entries(backups?.units || {})) {
     const skills = new Map();
     for (const f of Object.values(u.forms || {})) {
@@ -395,9 +400,9 @@ async function main() {
   const audio = indexAudio(audioData);
   // The game data built by tools/build-data.mjs (when present) may reference more
   // spawnable enemies/tokens than research lists (e.g. 机变 enemy swaps): cover them too.
-  const [dataEnemies, dataTokens, dataBosses, dataBackups, dataChess] = await Promise.all(
-    ['data/enemies.json', 'data/tokens.json', 'data/bosses.json', 'data/backups.json', 'data/chess.json'].map((f) => readJson(f).catch(() => null)));
-  const extras = dataExtras(dataBackups, dataChess);
+  const [dataEnemies, dataTokens, dataBosses, dataBackups, dataChess, extraOps] = await Promise.all(
+    ['data/enemies.json', 'data/tokens.json', 'data/bosses.json', 'data/backups.json', 'data/chess.json', 'tools/assets/extra-operators.json'].map((f) => readJson(f).catch(() => null)));
+  const extras = dataExtras(dataBackups, dataChess, extraOps);
   const extraHandbook = {};
   for (const b of Object.values(dataBosses || {})) if (b?.enemyKey && typeof b.handbookId === 'string') extraHandbook[b.enemyKey] = b.handbookId;
   const localEnemySpines = await syncLocalSpines(opts, 'enemy');

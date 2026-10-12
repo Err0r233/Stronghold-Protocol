@@ -96,7 +96,8 @@ test('信标: the gift still arrives when its sender is eliminated before the ne
 test('信标: a grant that fails (no copy left in the pool) keeps the gift for the next round start', () => {
   const { h, m, equip } = setup({ seed: 37 });
   const p0 = h.ps('p_0'), p1 = h.ps('p_1');
-  const cid = plain((c) => c.tier === 2 && c.bonds.length)[1];
+  // …and it has copies in THIS match's pool (a 巴别塔 shop chess the draw's exclusive members ban emptied has none)
+  const cid = plain((c) => c.tier === 2 && c.bonds.length && m.pool.has(c.chessId))[1];
   assert.deepEqual(equip(giveItem(m, p0, BEACON), give(m, p0, cid, 'hand')), OK);
   // every copy taken by "other players" before the round start
   const held = m.pool.take(cid, 99);
@@ -114,8 +115,15 @@ test('信标: a grant that fails (no copy left in the pool) keeps the gift for t
 test('信标: a receiver eliminated before the round start is replaced by the living teammate with the most bond members [ASSUMED]', () => {
   const { h, m, equip } = setup({ humans: 3, seed: 39 });
   const p0 = h.ps('p_0'), p1 = h.ps('p_1'), p2 = h.ps('p_2');
-  const cid = plain((c) => c.tier === 3 && c.bonds.length === 1)[0];
-  const bond = DATA.chess[cid].bonds[0];
+  // A plain chess of THIS match's pool with a bond whose other plain members fill all three seats. The record is no
+  // longer required to carry exactly one bond — the 巴别塔 / 元素 layers give their members a second one — and a chess the
+  // draw's exclusive-members ban emptied has no copies to give.
+  const withBond = (c) => c.bonds.some((b) => plain((x) => x.bonds.includes(b) && x.chessId !== c.chessId).length >= 3);
+  const cid = plain((c) => c.tier <= 3 && m.pool.has(c.chessId) && withBond(c)).sort()[0]
+    ?? plain((c) => m.pool.has(c.chessId) && withBond(c))[0]
+    ?? plain(withBond)[0];
+  assert.ok(cid, 'a plain chess with a bond of ≥ 3 other plain members');
+  const bond = DATA.chess[cid].bonds.find((b) => plain((x) => x.bonds.includes(b) && x.chessId !== cid).length >= 3);
   const mates = plain((c) => c.bonds.includes(bond) && c.chessId !== cid);
   deploy(m, p1, mates[0]);
   deploy(m, p1, mates[1]); // p1 fields the most members → picked at equip time

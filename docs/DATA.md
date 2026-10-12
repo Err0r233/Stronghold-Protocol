@@ -141,9 +141,9 @@ Top level: `{ season, seasonName, modes, economy, lpCapPerRound, bossOvertimeAft
 
 ---
 
-## 2. `chess.json` — `{ [chessId]: Chess }` (266 = 133 normal + 133 golden)
+## 2. `chess.json` — `{ [chessId]: Chess }` (284 = 142 normal + 142 golden)
 
-112 are `visible` (non-hidden, non-DIY) normal chess: per tier 16/17/19/22/19/19. 17 are `isHidden` (retired
+121 are `visible` (non-hidden, non-DIY) normal chess: per tier 18/18/21/22/22/20. 17 are `isHidden` (retired
 上半 entries or effect-only such as `chess_char_1_15_a` 盟约·辅助干员 from band Pith); 4 are DIY (甄选) slots.
 
 | Field | Example | Meaning |
@@ -242,7 +242,13 @@ everything needed to resolve a unit for `(chessId, skillIndex, moduleId)` (`simd
 - `statsBase` / `traitBase` / `talentsBase` — the golden record **without** any module (`stats` / `trait` / `talents`
   keep the default module, unchanged). `test/data.test.js` proves that composing the default module onto the base
   reproduces `stats`, `trait` and `talents` exactly for every golden chess.
-- Module-less goldens (蒂比, 凛御银灰): `modules: []`, base = own values. Normal chess have none of these fields.
+- Module-less goldens (蒂比, 凛御银灰): `modules: []`, base = own values. Normal chess have none of these fields, and so
+  does an elite with `equipLevel` 0 (the 自研 members of `tools/content/custom.mjs` used to be the case — since the
+  maintainer's instruction of 2026-10-12 「为维什戴尔等有模组的角色添加模组」 they carry their operator's default ADVANCED
+  module like an official golden, `equipLevel` 1 and 3 at T6): its
+  single loadout choice is `'none'` (`loadoutOptions`) while `resolveRecordLoadout` answers `null` — both mean "no
+  module" and both resolve to the record's own def (an elite always fights with `moduleId` `'none'` or a `uniEquipId`,
+  a normal chess with `null`).
 - Module parts flagged `isToken` and the per-token attribute blackboards go to the summons: `tokens.json →
   variants[owner].byModule` (§14). Module choices never change the combat classification (`dmgType`…; the build warns
   if one ever would).
@@ -273,7 +279,7 @@ full-rank build from the others; the build fails unless `atRank` rebuilds every 
 
 ---
 
-## 3. `bonds.json` — `{ [bondId]: Bond }` (23 bonds, 8 core)
+## 3. `bonds.json` — `{ [bondId]: Bond }` (25 = the official 23 + the 自研 巴别塔 and 元素, §19; 9 core)
 
 | Field | Example (`deputShip`) | Meaning |
 |---|---|---|
@@ -297,7 +303,7 @@ full-rank build from the others; the build fails unless `atRank` rebuilds every 
 | `members[]`, `visibleMembers[]` | `["chess_char_1_06_a",…]` | base (normal) chessIds incl. hidden / only visible |
 | `spec` | `{"tiers":[{"need":"…","effect":"…"}],"formulas":{…},"layerGain":"…",…}` | research 02 implementer spec (null without research) |
 
-## 4. `garrisons.json` — `{ [garrisonId]: Garrison }` (249; 43 distinct `effectKey`s)
+## 4. `garrisons.json` — `{ [garrisonId]: Garrison }` (271; 46 distinct `effectKey`s)
 
 | Field | Example | Meaning |
 |---|---|---|
@@ -310,7 +316,31 @@ full-rank build from the others; the build fails unless `atRank` rebuilds every 
 | `bb`, `bbStr` | `{"multi":1}`, `{"add_method":"shoplv","bond":"yanShip"}` | |
 | `owners[]` | `["chess_char_1_03_a"]` | chess carrying it (includes garrisons referenced by other garrisons, which may have no owner) |
 
-## 5. `items.json` — `{ [itemChessId]: Item }` (115 = 56 EQUIP × 2 + 3 MAGIC)
+Keys of an `act1autochess_gar_eff_attrByBond` row (the 每叠加N层 reader, `server/sim/content/garrisons/battle.js attrMods`):
+the **bare** `atk` / `max_hp` / `def` / `attack_speed` / `hp_recovery_per_sec` / `sp_recovery_per_sec` are the value **per
+step** (`floor(Σ layers of the listed ACTIVE bonds / divide_num)`, so `atk: 0.01` with `divide_num: 3` = +1 % per 3
+layers), and their optional **`base_*`** twins (`base_atk`, `base_max_hp`, `base_def`, `base_attack_speed`,
+`base_hp_recovery_per_sec`, `base_sp_recovery_per_sec`) are a **fixed** bonus applied once whatever the step count is
+(`base_atk: 0.4` = +40 %). Both are **fractions** and both are 直接乘算 (the engine's additive percentage buckets,
+research 02 §2.1), so one row can spell the whole sentence 「攻击力和生命值+40 %；【X】每叠加3层，本干员攻击力和生命值+2 %」
+— which is how the fiat rows whose official text carries the fixed half on a separate `garrison_03`-family row are
+merged into one id (a chess has one 特质 row per displayed block: `public/js/ui/detailPanel.js` draws
+`garrisonIds[0]`, `public/js/screens/loadout.js` draws every id). The official fixed rows themselves
+(「攻击力和生命值+20 %」, `bb { atk: 1.2 }` with `battleRuneKey char_attribute_mul`) are **multipliers** under
+`effectKey: "GAIN_BUFF"`, not this reader: same sentence, different key space, never mixed into an attrByBond row (a row
+without any `base_*` keeps its historical "no step, no buff" behaviour).
+
+**WHEN the step count is read (DESIGN §29.20, official note 「※仅在每次部署时判定盟约层数」).** The layer half is
+judged **once per (re)deployment** — at the deployment itself, not on the layer gain that follows it: a layer gain while
+the unit stands on the field never refreshes the buff, every later deployment (a redeploy after a knock-out, a 突袭
+landing, a 【移动】, the elite `_b` path and a summon that carries a 特质) judges the layers of that instant again, and a
+unit that never deploys carries no buff at all. The `base_*` half does not depend on layers but still waits for the first
+deployment (it is the same passive buff; the fixed part of a row whose official text puts it on a separate `garrison_03`
+/ `garrison_137` row is that row's own `GAIN_BUFF` buff and is unaffected). The other three layer readers of the same
+module (`respawnTimeByBond` 144, `attrByBond_add_onstart` 115, `ab_damageScaleByBond` 101) carry no per-deployment note
+in their official text and keep following the layer gains.
+
+## 5. `items.json` — `{ [itemChessId]: Item }` (121 = 59 EQUIP × 2 + 3 MAGIC)
 
 | Field | Example (`chess_item_1_01_e_a`) | Meaning |
 |---|---|---|
@@ -320,7 +350,7 @@ full-rank build from the others; the build fails unless `atRank` rebuilds every 
 | `name` | `"维式重锤"` | |
 | `itemType` | `"EQUIP"` | `EQUIP` (equipped, max 2) / `MAGIC` (Arts, dropped on a tile) |
 | `tier`, `price`, `hideInShop` | `1`, `1`, `false` | golden price 5 (never sold in shop) |
-| `shopExcluded`, `shopExcludedBy` | `false`, `null` / `true`, `"维多利亚盟约每25层 / 洛洛的定制品"` | effect-only items the shop never sells although the official table does not hide them (`tools/build-data.mjs SHOP_EXCLUDED_ITEMS`, sourced: the 4 special 维式重锤 — 战栗 / 坚固 / 加速 / 灼燃 — and 突变细胞; user playtest #4 item 5), normal and golden. `sim/simdata.js isShopItem` (non-golden EQUIP, not `hideInShop`, not `shopExcluded`) is the one predicate of every shop-item draw (the shop's item slot, 道具补给 / 机密商店 cards, `pool_equip_normal` / `_shop_1` / `_kathe` / `_narant`, `Match.rollItemId`): 51 of the 56 normal items; the item card shows `shopExcludedBy` as the source |
+| `shopExcluded`, `shopExcludedBy` | `false`, `null` / `true`, `"维多利亚盟约每25层 / 洛洛的定制品"` | effect-only items the shop never sells although the official table does not hide them (`tools/build-data.mjs SHOP_EXCLUDED_ITEMS`, sourced: the 4 special 维式重锤 — 战栗 / 坚固 / 加速 / 灼燃 — and 突变细胞; user playtest #4 item 5), normal and golden. `sim/simdata.js isShopItem` (non-golden EQUIP, not `hideInShop`, not `shopExcluded`) is the one predicate of every shop-item draw (the shop's item slot, 道具补给 / 机密商店 cards, `pool_equip_normal` / `_shop_1` / `_kathe` / `_narant`, `Match.rollItemId`): 54 of the 59 normal items; the item card shows `shopExcludedBy` as the source |
 | `mergeable`, `upgradeNum`, `upgradeChessId` | `true`, `2`, `"chess_item_1_01_e_b"` | 2 copies → golden; `upgradeNum` 100 = never merges |
 | `duration` | `-1` | trapDuration |
 | `giveBondId`, `givePowerId`, `canGiveBond` | `"victoriaShip"`, `null`, `false` | 变形同构体 (`canGiveBond`) grants the `giveBondId` of the *other* equipped item |
@@ -344,9 +374,9 @@ full-rank build from the others; the build fails unless `atRank` rebuilds every 
 | `victorCount`, `rewardModulus`, `unlockDesc` | `3`, `1`, `null` | |
 | `bondIds` | `["lateranoShip"]` (潘格尼尼) / `[]` | the bonds the strategy is built around (`shared/bandBonds.js`: the bond names in <…> of its text — the official note "在<X>部分干员缺席时体验可能不完整" among them — and the bond ids / bond pools of its blackboards, `pool` → choices.json `pools[pool].bond`); 9 bands are tied. The bot never picks, and the strategy draft marks 本局禁用, a band whose bond the mode switches off (DESIGN §21.26) |
 
-## 7. `effects.json` — `{ [effectId]: Effect }` (361: every effect of the season)
+## 7. `effects.json` — `{ [effectId]: Effect }` (368: every effect of the season)
 
-Types: `BAND_INITIAL` 41, `BOND` 23, `EQUIP` 115, `ENEMY_GAIN` 129 (悬赏), `BUFF_GAIN` 43 (战术决策), `ENEMY` 6 (`aceffect_enemy_*` global modifiers), `CHAR_MAP` 4 (角色练度映射 — the 自持有 练度 tiers `aceffect_char_1…4`, 未精英化 / 精英阶段1 / 精英阶段2 / 精英阶段2-60级, in `autoChessData.cultivateEffectList` order: their `char_attribute_mul` buff — `atk` / `def` / `max_hp` 1, 1.05, 1.1 — is the unit's 练度 multiplier, `shared/potential.js cultivateMul`, 0.2.2).
+Types: `BAND_INITIAL` 41, `BOND` 24, `EQUIP` 115, `ITEM` 6 (the 自研 专属装备 of §19: their effects are fiat rows and carry their own type so they never collide with the 115 official 装备 effects), `ENEMY_GAIN` 129 (悬赏), `BUFF_GAIN` 44 (战术决策: the official 43 + the 自研 凯尔希的盟誓, §19), `ENEMY` 6 (`aceffect_enemy_*` global modifiers), `CHAR_MAP` 4 (角色练度映射 — the 自持有 练度 tiers `aceffect_char_1…4`, 未精英化 / 精英阶段1 / 精英阶段2 / 精英阶段2-60级, in `autoChessData.cultivateEffectList` order: their `char_attribute_mul` buff — `atk` / `def` / `max_hp` 1, 1.05, 1.1 — is the unit's 练度 multiplier, `shared/potential.js cultivateMul`, 0.2.2).
 
 | Field | Example | Meaning |
 |---|---|---|
@@ -506,9 +536,9 @@ Glyph legend (`rows`):
 | `parts[]` | `["enemy_9014_acstma","enemy_9015_acstmb"]` | boss parts (random local groups / unharmful); not leaders — 限伤 never applies to them |
 | `abilities[]` | handbook texts | |
 
-## 14. `tokens.json` — `{ [tokenId]: Token }` (22)
+## 14. `tokens.json` — `{ [tokenId]: Token }` (24)
 
-`kind`: `summon` (19 chess summons), `bondSummon` (`enemy_9012_acloon` 炎佑 for 炎 6/9), `mapChar` (`char_605_cmedic`
+`kind`: `summon` (21 chess summons), `bondSummon` (`enemy_9012_acloon` 炎佑 for 炎 6/9), `mapChar` (`char_605_cmedic`
 预备干员-医疗 / `char_613_acmedc` Touch placed by band `band_amedic`).
 
 | Field | Example (`token_10028_vigil_wolf`) | Meaning |
@@ -547,7 +577,7 @@ Glyph legend (`rows`):
    record has `module:{id:null,active:false}` and no module stat bonus.
 4. **Hidden chess (17)** are kept with `visible:false`; several operators exist in two tiers with one hidden
    (锡人, 耶拉, 录武官, 白面鸮, 百炼嘉维尔, 魔王, 华法琳, 妮芙).
-5. **Every non-DIY chess (258 records: 129 normal + 129 golden) has a resolvable default skill, stats and range** — no
+5. **Every non-DIY chess (276 records: 138 normal + 138 golden) has a resolvable default skill, stats and range** — no
    skill anomalies.
 6. **Skill triggers** (§2.2): the class rows cover every MANUAL skill of the class (all 重装 MANUAL skills are
    `TAKE_DAMAGE` but the six of the deliberate deviation, DESIGN §21.29, which are `DEFAULT` with `rawRule` `TAKE_DAMAGE` (深巡 S2 then `ACTIVE_RANGE`), and 余 S2, `SKILL_RANGE` on its x-1 (DESIGN §22.10); 薄绿 / 卡涅利安 / 蜜蜡 S2 and 玛恩纳 S1 `SEARCH`; 伺夜 / 魔王 / 浊心斯卡蒂 S3 `SP_FULL`) and no AUTO skill (古米 /
@@ -601,9 +631,9 @@ Glyph legend (`rows`):
 
 ## 16. Counts (current build)
 
-`chess 266 (112 visible; 283 selectable skills over the visible chess, 185 module choices over 129 goldens; 74 PRESET / 55 NORMAL / 4 DIY base chess)`, `bonds 23`, `garrisons 249 (43 effect keys)`, `items 115`, `bands 40`, `effects 361`,
-`enemies 249`, `factions 67 entries`, `waves 38`, `stages 11 (8 active)`, `bosses 10`, `tokens 22`, `choice events 109`,
-`bounty cards 129`, `tactic cards 43`, `backups: 89 units (17 stand-ins, 72 owned-6★ picks; 259 forms), 38 自选 summons, 4 DIY slots, 15 / 9 prototype picks (tier 5 / 6), 72 owned-6★ picks (7 collab operators excluded)`, potential (§2.3): `256 chess records, 219 forms / variants with potDown; 442 + 401 + 19 chained talent entries (chess, backups, tokens)`.
+`chess 284 (121 visible; 307 selectable skills over the visible chess, 185 module choices over 138 goldens; 83 PRESET / 55 NORMAL / 4 DIY base chess)`, `bonds 24`, `garrisons 271 (46 effect keys)`, `items 121`, `bands 40`, `effects 369`,
+`enemies 249`, `factions 67 entries`, `waves 38`, `stages 13 (8 active)`, `bosses 10`, `tokens 24`, `choice events 109`,
+`bounty cards 129`, `tactic cards 44 (43 official + 凯尔希的盟誓 §19)`, `backups: 83 units (17 stand-ins, 66 owned-6★ picks; 241 forms), 36 自选 summons, 4 DIY slots, 15 / 9 prototype picks (tier 5 / 6), 66 owned-6★ picks (7 collab operators excluded)`, potential (§2.3): `272 chess records, 198 backup forms with potDown; 460 + 378 + 19 chained talent entries (chess, backups, tokens)`.
 
 ## 17. Integrity guarantees (checked by the builder and `test/data.test.js`)
 
@@ -655,7 +685,7 @@ server/match/player/diy.js, docs/META.md §3). The rules in the data (activity_t
   even their elite form has none) and the row's potential (`potRank` 0 on all 55) — moot: the 17 原型干员 have no
   potential ranks, and a stand-in takes neither the player's potential nor the 自持有 练度 (0.2.2).
 
-`units[charId]` — first the 17 stand-ins, then the 72 owned-6★ 自选 picks (`diy.ownedPool`); no unit for a PRESET or DIY
+`units[charId]` — first the 17 stand-ins, then the 66 owned-6★ 自选 picks (`diy.ownedPool`); no unit for a PRESET or DIY
 chess:
 
 | Field | Example (`char_611_acnipe`) | Meaning |
@@ -720,11 +750,11 @@ operator (自选)").
 | `slots[slotId]` | `{"tier":5,"goldenId":"chess_char_5_diy1_b","shopLevel":5,"requirement":"TIER_6"}` | the four DIY chess `chess_char_5_diy1/2_a`, `chess_char_6_diy1/2_a` (chess.json: price 4, sell 1, `diyRequirement`, empty `bonds` / `garrisonIds`); `shopLevel` = the 调度中心 level whose `shopLevelDisplayDataDict.charChessDiySlotIdList` lists the slot |
 | `prototypes[tier]` | `{"5":[…15],"6":[…9]}` | the legal prototype picks: the nine 6★ at both tiers, at tier 5 also the six 4★ that are not 先锋 / 特种 ("第5阶可额外从6名四星原型干员（先锋、特种职业除外）中选取"; `DIY_EXTRA_PROTOTYPES`). A prototype may fill a tier-5 and a tier-6 slot ("原型干员可于5、6阶之间重复选取") |
 | `locked[tier][charId]` | `{"skillIndex":2,"uniEquipId":"uniequip_002_acguad","from":["chess_char_5_06_a","chess_char_5_13_a"]}` | the skill and module a prototype carries in a slot of that tier — "技能携带规则与系统补位时一致" (PRTS 卫戍协议), read as [ASSUMED] (the owner's decision of 2026-10-05) the selection of its 补位 rows at that tier (`from`): the eight 6★ elites S3 with their own module, 领主·Sharp S1, the reserves S3 without a module; 预备干员-医疗 has no tier-5 row: S3 by analogy (`from` `[]`, `DIY_PROTOTYPE_FALLBACK_SKILL`) |
-| `ownedPool[]` | 72 charIds | the owned 6★ a player may slot: obtainable, rarity = the requirement, and no chess names it — hidden chess included ("不可甄选加入已在名单中的固定干员"); each at most once per roster ("玩家已拥有干员不可重复选取"). Not the collab operators (`excluded`) |
+| `ownedPool[]` | 66 charIds | the owned 6★ a player may slot: obtainable, rarity = the requirement, and no chess names it — hidden chess included ("不可甄选加入已在名单中的固定干员"); each at most once per roster ("玩家已拥有干员不可重复选取"). Not the collab operators (`excluded`) |
 | `excluded[]` | `["char_456_ash","char_1029_yato2","char_1048_orchd2","char_4123_ela","char_4141_marcil","char_4182_oblvns","char_4217_makoto"]` | the 7 obtainable 6★ outside the pool that come from a 联动寻访 — a collab team in `mainPower` / `subPower` (`DIY_EXCLUDED_TEAMS`: rainbow, action4, mujica, sees, laios — 灰烬, 麒麟R夜刀, 艾拉, 玛露西尔, 丰川祥子, 结城理) or a collab series in `displayNumber` (`DIY_EXCLUDED_NUMBER_PREFIXES` MH / RS / AM / PS / DD — also 焰狐龙梓兰 MH05, whose team reserve6 names no collab): left out of the data and the pool by the owner's decision of 2026-10-05 (copyright); the excel does not exclude them |
 | `operators[charId]` | `{"name":"煌","rarity":6,"profession":"WARRIOR","subProfessionId":"centurion","obtainable":true,"powers":["rhodes","elite","yan","victoria"],"bonds":["yanShip","victoriaShip"]}` | every pick (owned pool + prototypes): `powers` = the `nationId` / `groupId` / `teamId` of `mainPower` and of every `subPower` (隐藏势力); `bonds` = the core bonds whose `powerIdList` meets them — one or several — else `economy.fallbackBondId` 协防干员 ("甄选加入的干员会根据其实际阵营所属分配核心盟约，若没有可匹配的则改为分配协防干员盟约"); every prototype gets `["emptyShip"]` |
 
-`tokens[tokenId]` — the summons of the owned picks (38 tokens of 27 operators): a tokens.json record (§14: name, text,
+`tokens[tokenId]` — the summons of the owned picks (36 tokens of 25 operators): a tokens.json record (§14: name, text,
 `placeable`, `ownerRange`, `abnormal`, `assets`) whose `variants` are keyed by the owner FORM `<charId>@<statusKey>`
 (`owners` = those keys; shared/diy.js `diyTokenOwner`) instead of a chess id — a DIY piece is a slot, and two players may
 fill one slot with different operators. A variant is the token at the owner's status for its first skill and no module,
@@ -737,3 +767,314 @@ the DIY stock (per player in the match, `PlayerState.diyStock`: `config.economy.
 field), 助战 borrows (`borrowCount` 20), and a player's potential / 练度 per operator (the 干员调配 settings sent with
 `room.loadout`; the forms are built at full potential and carry the lower ranks, §2.3; 练度 = effects.json
 `aceffect_char_1…4`).
+
+---
+
+## 19. The 自研 (fiat) content layer — `tools/content/custom.mjs`
+
+Everything above is derived from the official zh_CN tables. This one module is the exception: the maintainer's own
+content, which exists in no build source. `AGENTS.md` allows it — 「Deliberate deviations from the official mode are
+the maintainer's decision only」 — and every block in it names the design section it implements
+(`docs/research/15-babel-bond.md` for 巴别塔, `docs/research/17-element-bond.md` for 元素; the committed records for
+克莱门莎). `node tools/build-data.mjs --no-research` skips the whole layer, which is how a rebuild from the official
+tables alone is reproduced.
+
+Three blocks of equal standing:
+
+- **巴别塔** — the 自研 core bond (`babelShip`, §3: the 24th bond, `isCore`, `powerIdList ['babel']`, `identifier` 24,
+  weight 10, 一档 3 / 二档 6), its effect (`bondeffect_babel` + one `env_gbuff_new` buff), the 特质 of its members
+  (`garrison_162_a`…`garrison_170_b`), its 8 new shop chess (`chess_char_1_05_babel` … `chess_char_6_04_babel`, both
+  forms, `PRESET`; the elite carries its operator's default ADVANCED module like an official golden — `equipLevel` 1,
+  3 at T6 — while the NORMAL form stays `equipLevel` 0, §2.2) with the extra official bonds the design gives them, the
+  bond added to the official chess of 华法琳 / 魔王 / 伊内丝 (both forms, the hidden T5 forms of 华法琳 and 魔王
+  included — 华法琳's 特质 stays the official `garrison_72_a/_b` → `95_a/_b`, §19.8), the 阿米娅·医疗 character record
+  (`char_1037_amiya3`, a 升变 form the official character table does not
+  carry), and the **three 专属装备** below.
+- **元素** — the 自研 ADD-ON bond (`elementShip`, §19.4; `isCore` false, `bondType REGULAR`, `identifier` 25, weight
+  10, 一档 2 / 二档 3, `countMode BOARD`), its effect (`bondeffect_element` + one `env_gbuff_new` buff carrying every
+  number the simulation reads: `element_damage_*`, `apoptosis_*`, `burn_*`, `neural_*`, `erosion_*`,
+  `tier2_cap_layers`), the 特质 of its members (`garrison_175_a`…`garrison_179_b`), the extended official rows
+  (`elementChessBonds` / `elementChessGarrisons`), the `garrisonKeep` list of official rows the replacements leave
+  unreferenced, and **珊比's promotion** out of the 自选 pool into a visible T4 PRESET shop chess
+  (`chess_char_4_27_a/_b`, `elementChess`).
+- **克莱门莎** (`char_4231_clemnt`) — a 自选 operator the maintainer turned into a visible T5 shop chess with the
+  official 特质 `garrison_161_a/_b` (Codex, 2026-10-12). Her three records are the committed `data/chess.json` /
+  `data/garrisons.json` records field for field, so a rebuild cannot silently drop an operator the shop shipped; the
+  same rule is why her `bondIds` states her exact final list instead of taking a union entry (§19.7). Her
+  trait pair was later replaced by `garrison_178_a/_b` (the 元素 design, §19.5); the committed pair stays in the
+  dataset through `garrisonKeep`.
+
+### 19.1 The 11 特质 of the 巴别塔 members (final, 2026-10-12)
+
+The 承伤 / 治疗 / 伤害输出 axes (`server/sim/content/garrisons/battle.js`
+`act1autochess_gar_event_takedamage` / `_healamount` / `_dealdamage`) plus the economy and stat rows. Thresholds and
+caps live in the blackboard (`bb`), so a retune is a `tools/content/custom.mjs` edit + rebuild, never a code change.
+
+| 特质 | ids | threshold | per crossing | per battle |
+|---|---|---|---|---|
+| 暴行 `<售出时>` 资金 | `garrison_162_a/_b` | — | +1 / +2 资金 | — |
+| 奥达 每累计承受伤害 | `garrison_163_a/_b` | `check_hp` 800 | 【巴别塔】+1 / +2 | 8 / 16 |
+| 阿米娅·医疗 每累计实际治疗 | `garrison_164_a/_b` | `check_hp` 1200 | 【巴别塔】【奥术】各 +2 / +4 | 10 / 20 |
+| 阿斯卡纶 每累计造成伤害 | `garrison_166_a/_b` | `check_damage` 4000 | 【巴别塔】【突袭】各 +2 / +4 | 6 / 12 |
+| 可露希尔 `<获得时>` 自身盟约 | `garrison_167_a/_b` | — | +4 / +8 | — |
+| 赫德雷 【巴别塔】每 3 层攻防 | `garrison_168_a/_b` | `divide_num` 3 | 攻防 +1 % / +2 % | — |
+| 逻各斯 每累计造成伤害 | `garrison_169_a/_b` | `check_damage` 5000 | 【巴别塔】【奥术】各 +6 / +8 | 24 / 32 |
+| 维什戴尔 攻防固定 + 【巴别塔】每 3 层 | `garrison_170_a/_b` | `base_atk`/`base_max_hp` 0.2 / 0.4 + `divide_num` 3 | 攻击力和生命值 +20 % / +40 % **且**每 3 层 +1 % / +2 %（一行两个半边） | — |
+| 华法琳 `<战斗开始时>` 身前 | official `garrison_72_a/_b` → `95_a/_b` | — | 自身盟约 +1 / +2 per skill | **7 / 14**（官方值；自研的 4 / 8 覆盖已撤销，§19.8） |
+| 魔王 放大身前一格的加层 | official `garrison_59_a/_b` | — | +1 / +2 per gain | — |
+| 伊内丝 `<休整期结束时>` 自身盟约 | official `garrison_104_a/_b` | — | +5 / +10 | — |
+
+**Field dependency (accepted trade-off, maintainer 2026-10-12).** Four of the sources above are `<战斗中>` rows
+(163/164/166/169), and `battle.flags.layerGainsEnabled` is false in the 联防 (`unite`), 首领 (`boss`) and 隐秘核心
+fields (`Battle.js`: `kind === 'normal'` only; `match/unitePhase.js`, `match/bossRounds.js` and `match/finalAssault.js`
+set it explicitly). In those modes 巴别塔's in-battle layer income is therefore zero, and the per-round floor comes from
+the two 战斗外 sources alone — 可露希尔 `<获得时>` (+4 / +8 per acquisition) and 伊内丝 `<休整期结束时>` (+5 / +10 per
+round). That is the maintainer's decision: the mechanism is not compensated for, and a mode whose layers stay near zero
+is reported, not patched here.
+
+### 19.2 The three 专属装备 (final, 2026-10-12)
+
+An item is four official tables (see the `applyCustom` table below); the two 套装 partners name each other through the
+**official** mechanism 天马之盔 / 天马之枪 use — `bbStr.equip_chess_id` = the partner's suffix-less item key, read
+per unit by `server/sim/content/items/battle.js carries()` — so the condition is **same carrier only** (never the team)
+and either quality of the partner satisfies it. `requiresBondId` is a different, official field (a bond the carrier must
+be a member of) and none of the three uses it.
+
+| 装备 | ids | tier / category | 基础 | 条件效果 | 进阶 |
+|---|---|---|---|---|---|
+| 巴别塔誓言 | `chess_item_2_08_e_a/_b` | 2 / BOND_GRANT | 攻防 +5 % | `giveBondId` = `babelShip`: with 变形同构体 (the official `canGiveBond` item) on the SAME carrier, the carrier counts as a 【巴别塔】 member | 攻防 +10 % |
+| “魔王的祭器” | `chess_item_5_10_e_a/_b` | 5 / SET | 生命值 +25 % | with “文明的存续”: an ally heal grants a shield of `heal_scale` 40 % of the HP actually restored, the pool capped at `max_hp_scale` 30 % of the carrier's own max HP | 生命值 +40 % (the condition is unchanged) |
+| “文明的存续” | `chess_item_6_12_e_a/_b` | 6 / SET | 攻防 +20 % | with “魔王的祭器”: every `check_hp` 3000 of HP actually dealt to an enemy grants one layer (攻 +5 % / 攻速 +5, ≤ `max_stack_cnt` 4, for the battle) | 攻防 +35 %; and a **global TRUE-damage amplifier ×`true_damage_mul` 2.5** |
+
+The amplifier is the one global effect of the layer. It is implemented as a player-scoped `hit` handler
+(`chess_item_6_12_e`, `d.dmg.type === 'true'` ⇔ `c.source.ownerId === carrier.ownerId` ⇔ `c.target.side === 'enemy'` →
+`d.mul *= true_damage_mul`), installed only by the 进阶 record's buff
+(`act2autochess_equip_acbabel_legacy_global_buff`) and only on the carrier. The engine has no other "all enemies take
+more true damage" amplifier to reuse: the existing global damage multipliers are the per-unit `dmgDealtMul` stat
+(维多利亚 / 谢拉格 / 协防), which scales EVERY damage type and would not express a 真实伤害-only axis, so the ×2.5 is a
+type-filtered `hit` multiplier, the same axis 精准狙击镜 / 卡西米尔竞技旗 / 家族徽章 write.
+
+### 19.3 The 机变「盟誓」card — 凯尔希的盟誓 (maintainer, 2026-10-12)
+
+The official 盟誓 family is EIGHT `BUFF_GAIN` effects `allybuff_select_2_1`…`_2_8`, one 战术决策 card each: a single
+`global_special_choice_bond_addlayer { count, bond_list }` buff and the sentence 「你的<盟约>盟约层数+N，若存在其他队友则
+他们也获得」. The maintainer's card is the ninth, `allybuff_select_2_9` — **「凯尔希的盟誓」: 使【巴别塔】层数 +10**.
+
+| field | value | why |
+|---|---|---|
+| id | `allybuff_select_2_9` | the family's own sequence (the official ids stop at `_2_8`) |
+| `effectType` / `counterType` / `continuedRound` / `enemyPrice` | `BUFF_GAIN` / `NONE` / −1 / 0 | field for field of the official eight |
+| `effectDecoIconId` | `icon_team_buff` | the team-copy icon; the page derives `team: true` from the 「若存在其他队友则他们也获得」 in the text |
+| text | 你的巴别塔盟约层数+10，若存在其他队友则他们也获得 | the family's sentence. 巴别塔 has no shorter form (official entries use the 2-character 简称: 你的阿戈尔、突袭和坚守盟约层数+8), so the bond's full name is written |
+| buff | `global_special_choice_bond_addlayer`, `bb { count: 10 }`, `bbStr { bond_list: 'babelShip' }` | the family key. **+10** = the maintainer's value: the family pays +12 to its one single-bond card (玛恩纳的盟誓, 卡西米尔) and +10 / +8 to the multi-bond ones, so a single-bond card sits at the top of that range — 10 keeps it one step under 玛恩纳's |
+| `cards.tactic` entry | `{ effectId, name: '凯尔希的盟誓', kind: 'ally', stageId: null, team: true }` | **derived** by `buildChoices` from the effect; there is no choice-event row (`effectChoiceInfoDict` is not involved) |
+| draft weight | 1 | **derived**: `tacticDraft.weights` = 1 + the official cards a card showed on, and no official 战术决策 screenshot showed this one, so it is unlisted — 1, like any unseen ally card |
+
+**No new code and no other table.** The card exercises the generic path only: `server/match/choices.js`
+`cardTargetBonds` / `tacticDraftCards` (offered while `Match.bondLive('babelShip')`), then
+`applyDefault`'s `global_special_choice_bond_addlayer` case → `PlayerState.addLayers('babelShip', 10,
+{ requireActive: false })` — 无需激活, exactly like the official 盟誓 cards (an inactive bond takes the layers anyway) —
+once for the picker and once per living teammate (`team: true`). Nothing was added to `server/sim/content/choices.js`:
+`choiceCardIds` covers every `BUFF_GAIN` effect and `registerMeta` hands all of them the shared `TACTIC` handler.
+The card needs **no new art**: it is an ordinary text card drawn from `decoIconId` (`icon_team_buff`, the shared buff
+icon, `public/js/ui/choiceOverlay.js` + `ui/assetUrls.js`), like the official eight.
+
+### 19.4 元素 (elementShip) — the second 自研 bond, and its four burst clauses (maintainer, 2026-10-12)
+
+The design (`docs/research/17-element-bond.md`) is delivered as a `element`-prefixed family of tables in
+`tools/content/custom.mjs`, merged by `applyCustom` exactly like 巴别塔's:
+
+| Module table | Official table it enters | Builder that reads it |
+|---|---|---|
+| `elementBond` | `act.bondInfoDict` | `buildBonds` (name, thresholds, icon, members) |
+| `elementModeBond` | `ac.bondInfoDict` | `buildBonds` (`isPower` ⇒ `isCore` = false, `bondType` REGULAR) |
+| `elementEffect` / `elementEffectBuffs` | `act.effectInfoDataDict` / `effectBuffInfoDataDict` | `buildEffects` → `buildBonds` (`desc` / `effectDesc` / the whole `bb`) |
+| `elementGarrisons` | `act.garrisonDataDict` | `buildGarrisons` |
+| `elementChess` / `elementShopRows` / `elementNormalLookup` | `charChessDataDict` / `charShopChessDatas` / `chessNormalIdLookupDict` | `buildChess` (珊比's promotion) |
+| `elementChessBonds` | `charChessDataDict[*].bondIds` (UNION) | `buildChess` |
+| `elementChessGarrisons` | `charChessDataDict[*].garrisonIds` (REPLACE) | `buildChess` |
+| `garrisonKeep` | `data/garrisons.json` (read directly by `buildGarrisons`) | the official rows a replacement leaves unreferenced |
+
+The bond: 附加 (non-core), `countMode BOARD`, thresholds `[2, 3]`, `weight` 10, `identifier` 25, icon
+`icon_elementShip` (`public/assets/bond/elementShip.png`, §19.6). Its complete blackboard lives in one `env_gbuff_new`
+buff — every number the simulation reads, nothing hardcoded in `server/sim/content/bonds/addon/element.js`:
+
+| key | value | what it drives |
+|---|---|---|
+| `element_damage_base` / `_per_stack` / `_cap_layers` | 0.10 / 0.003 / 150 | 一档: a member's 元素损伤 ×(1 + base + per·min(L, cap)) → +10 % at 0, +55 % at 150 |
+| `tier2_cap_layers` | 200 | the clamp of all four 二档 clauses |
+| `apoptosis_burst_base` / `_per_stack` | 1.10 / 0.01075 | 凋亡: the burst's damage ×(…), 110 % → 325 % |
+| `apoptosis_atk_final_mul` | 0.70 | 凋亡: the target's 攻击力额外最终 ×0.70 (a second, multiplicative `atkMul`) |
+| `burn_burst_base` / `_per_stack` | 1.95 / 0.01495 | 灼燃: ×(…), 195 % → 494 % |
+| `burn_res_down` | 20 | 灼燃: the target's RES −20 more (its own `resFlat` buff) |
+| `neural_burst_base` / `_per_stack` | 1.10 / 0.0075 | 神经: the burst's DIRECT damage ×(…), 110 % → 260 % |
+| `neural_dot_base` / `_per_stack` | 500 / 4 | 神经: 无来源 元素伤害 per second during the cooldown, 500 → 1300 |
+| `erosion_def_down` | 120 | 侵蚀: the target's DEF −120 more, permanent and stacking |
+| `erosion_dot_base` / `_per_stack` | 750 / 6 | 侵蚀: 无来源 物理伤害 per hit, 750 → 1950 |
+| `erosion_dot_hits` / `_interval` | 10 / 0.03 | 侵蚀: ten hits dispatched over 0.3 s (see the engine note below) |
+
+The per-stack slopes are **derived** (`slope(base, top, cap)`), so the design's two endpoints are the only numbers
+typed. The engine side is `server/sim/content/bonds/addon/element.js`, loaded as a third part by
+`server/sim/content/bonds.js` (`PARTS`: core / addon / element): 一档 rides the `elementHit` hook (the one mutable
+point on a gauge fill, where the kits' own 「受到的元素损伤±N %」 handlers write) and 二档 the `elementBurst` hook plus a
+per-target slot the `hit` handler consumes — 凋亡's slot survives for the whole cooldown, because its damage is the
+engine's per-second 元素伤害 tick, not one instance. `[ASSUMED]` there: `battle.after(n · erosion_dot_interval)` per
+hit, since the tick is 1/30 s and 0.03 s is 0.9 of a tick (the header of the module carries the full note).
+
+### 19.5 The 元素 members, their 特质 and 珊比's promotion
+
+Seven operators, two records each in the bond's `chessIdList` (妮芙's hidden T6 form included, so `members` has eight
+entries and `visibleMembers` seven):
+
+| 干员 | chess | what changed |
+|---|---|---|
+| 菲莱 | `chess_char_3_06_a/_b` | `bonds` += `elementShip`; `garrisonIds` → `garrison_175_a/_b` (her official 萨尔贡 +6/+12 row with the 元素 clause added, same `act1autochess_gar_event_useskill` handler) |
+| 烛煌 | `chess_char_5_03_a/_b` | `bonds` += `elementShip`; → `garrison_176_a/_b` (炎/维多利亚 +5/+10 「无需激活盟约」 + 元素) |
+| 妮芙 | `chess_char_5_22_a/_b` (and `6_10_a/_b`) | `bonds` += `elementShip`; → `garrison_177_a/_b` (整备区每 1 个干员 → 迅捷 + 元素 +2/+4); her hidden form keeps `garrison_56_a/_b` |
+| 余 | `chess_char_6_03_a/_b` | `bonds` += `elementShip` only — 特质 unchanged (`garrison_37_a/_b`, still owned) |
+| 克莱门莎 | `chess_char_5_clemnt_a/_b` | `bonds` **= `['egirShip', 'swiftShip', 'elementShip']` exactly** (her fiat records state the final list — 不屈 removed, 元素 kept, §19.7's REMOVING note and the maintainer's ruling of 2026-10-12); `garrisonIds` → `garrison_178_a/_b` — **REPLACES** her committed pair: 每击倒 3 名敌人 → 【阿戈尔】【迅捷】【元素】+2 / +4, 每场战斗至多 +14 / +28 (`check_cnt` 3 + `max_add_count_per_battle`); the old pair had no rhythm and no cap |
+| 塑心 | `chess_char_6_09_a/_b` | `bonds` += `elementShip` only — 特质 unchanged (`garrison_90_a/_b`, still owned) |
+| 珊比 | `chess_char_4_27_a/_b` | **promoted** from a 自选 6★ to a visible T4 PRESET shop chess (`elementChess` / `elementShopRows` / `elementNormalLookup`), `bonds: ['elementShip']`, 特质 `garrison_179_a/_b` (`<获得时>使【元素】层数 +6 / +12（无需激活盟约）`). She leaves `backups.diy.ownedPool` / `units` (a roster operator is never a 自选 pick) and must stay in `tools/assets/extra-operators.json` or a manifest rebuild drops her assets |
+
+`garrisonKeep` is the one new mechanism: `buildGarrisons` emits a row only while some chess names it, so replacing a
+`garrisonIds` entry would silently drop the official row from `data/garrisons.json`. The keep list holds
+`garrison_35_a/_b`, `garrison_43_a/_b` and `garrison_161_a/_b` (妮芙's `garrison_56` needs no entry: her hidden form
+still names it). They come out as orphans (`owners: []`), the shape the dataset already carries for the halves of a
+granting pair (29 / 95 / 96 / 108 / 117_b) — 华法琳's official `garrison_72_a/_b` → `95_a/_b` are the same shape and
+need no keep entry either, since the hidden T5 pair `chess_char_5_04_a/_b` names `72` and `buildGarrisons` reaches `95`
+through it (`garrison_72`'s blackboard `give_garrison_id`; §19.8).
+
+**Default skill（默认技能，维护者 2026-10-13）**: two of the seven 元素 members carry one on both records of their pair —
+珊比 `chess_char_4_27_a/_b` → **S2 「慢慢走~」** (index 1) and 克莱门莎 `chess_char_5_clemnt_a/_b` → **S2 「风暴潮」**
+(index 1); the other five keep S1. Their shop rows are this module's own (`elementShopRows` / `clemensa.shopRows`), so
+the index is a field of that row, `defaultSkillIndex` = `backupCharSkillIndex`; the full batch is tabulated in §19.8.
+
+`server/sim/content/garrisons/meta.js` gained a per-bond requirement table with the same change: a fiat row EXTENDS an
+official one by adding a bond to its `bbStr.bond` list, and `requireActiveOf` reads the 「已激活」/「无需激活盟约」 flag
+from the TEXT (one flag for all of a row's bonds). `BOND_REQUIRE_OVERRIDE` lists the per-row, per-bond exceptions:
+菲莱's 元素 clause takes the 无需激活 path (the bond has no other member on the board at the cast) while her 萨尔贡
+keeps its text-derived flag, and 烛煌's three / 珊比's one repeat their text (「无需激活盟约」). **妮芙's entry was
+removed on 2026-10-12**: 元素 requires an activated bond exactly like 迅捷, as her text
+「使已激活的【迅捷】【元素】」 says, so the row needs no exception at all
+(`test/content/garrisons_meta.test.js` asserts that neither bond gains while inactive). 菲莱's exception stays
+`[ASSUMED]`, recorded in `docs/research/17-element-bond.md` §5.
+
+### 19.6 The 元素 bond icon
+
+`public/assets/bond/elementShip.png` — 104×104, 8 825 B RGBA, built by `tools/build-element-bond-icon.py` (Pillow:
+white → transparent if needed, alpha crop, long side → 104 px) from the **本源术师** branch icon on PRTS
+(`media.prts.wiki/1/18/职业分支图标_本源术师.png`), the same non-GitHub host `char_1037_amiya3`'s voice uses. The source
+is already a white glyph on transparency and 54×54, so the step is alpha-crop + scale. `docs/research/07-assets.json`
+`bonds.elementShip` records the URL and `fallbackCampLogo: null`; the rebuild (`tools/fetch-assets.mjs
+--asset-source=mirror --add-only`) reports `bonds 25` with no lost key.
+
+`tools/build-data.mjs applyCustom(ctx)` merges the module into the loaded official tables **before any builder runs**:
+
+| Module table | Official table it enters | Builder that reads it |
+|---|---|---|
+| `bond`, `modeBond` | `act.bondInfoDict` / `ac.bondInfoDict` | `buildBonds` (`isPower` ⇒ `isCore`) |
+| `effect`, `effectBuffs` | `act.effectInfoDataDict` / `effectBuffInfoDataDict` | `buildEffects` → `buildBonds` |
+| `effects`, `effectBuffsPledge` | `act.effectInfoDataDict` / `effectBuffInfoDataDict` | `buildEffects` → `buildChoices` (`cards.tactic`, §19.3) |
+| `garrisons`, `clemensa.garrisons` | `act.garrisonDataDict` | `buildGarrisons` |
+| `items` | `act.trapChessDataDict` | `buildItems` (the item row: identifier, prices, `upgradeChessId`, `giveBondId`, `canGiveBond`, `itemType`, `trapDuration`) |
+| `itemShopRows` | `act.trapShopChessDatas` | `buildItems` (tier, `shopLevelSortId`, `hideInShop`) |
+| `itemEffects`, `itemEffectBuffs` | `act.effectInfoDataDict` / `effectBuffInfoDataDict` | `buildEffects` → `buildItems` (`desc` / `buffs` / `params`) |
+| `itemTraps` | `charTable` | `buildItems` (the item's `name`) and the client item card (`iconId` = `trapId` = the trap charId) |
+| `researchItems` | `ctx.research.items.items` (`docs/research/04-items.json`) | `buildItems` (category / kind / implFormula / flavor / rangeGrid — the optional 04 annotation) |
+| `chess`, `clemensa.chess` | `act.charChessDataDict` | `buildChess` |
+| `shopRows`, `clemensa.shopRows` | `act.charShopChessDatas` | `buildChess` (tier, price row, backup fields) |
+| `normalLookup`, `clemensa.normalLookup` | `act.chessNormalIdLookupDict` | `buildChess` (the elite's base id) |
+| `characters` | `charTable` | every builder that reads a character |
+| `chessBonds` | `act.charChessDataDict[*].bondIds` (union) | `buildChess` |
+| `bondChessIds` | `act.bondInfoDict[*].chessIdList` (union) | `buildBonds` (`members` / `visibleMembers`) |
+| `chessGarrisons` / `elementChessGarrisons` | `act.charChessDataDict[*].garrisonIds` (replace) | `buildChess` |
+| `modeBonds.active` | `config.modes[*].activeBondIds` | `buildConfig` |
+| `garrisonKeep` | `data/garrisons.json` (read directly) | `buildGarrisons` |
+
+**Add-if-absent** is the rule for every table: an id the official table already has wins, the module's row is dropped,
+and the build prints a `custom: …` warning (so a future source update — or an official 克莱门莎 row — takes over by
+itself). Three fields are arrays *on* rows the official table already has and cannot be expressed that way; they are the
+three places the module ever modifies an official row:
+
+- `chessBonds` — a UNION with the row's `bondIds`; 巴别塔 and 元素 are only ever added, never removed. A FIAT chess
+  whose list must LOSE a bond (克莱门莎, 2026-10-12) cannot use it: her own record (`clemensa.chess`) carries the exact
+  final `bondIds`, `buildChess` copies that array verbatim, and neither union table names her.
+- `bondChessIds` — the same UNION on an official bond's `chessIdList`: a fiat chess that carries an official bond must
+  appear in that bond's member list, because `buildBonds` derives `members` / `visibleMembers` from it and the bond
+  panel lists its 成员 from those (the mirror invariant `test/data.test.js` asserts).
+- `chessGarrisons` (and its 元素 twin `elementChessGarrisons`) — REPLACES the row's `garrisonIds`: the design overrides
+  华法琳's trait cap — **withdrawn again on 2026-10-13 (§19.8)**, her row now points at the official pair — and extends
+  菲莱 / 烛煌 / 妮芙 / 克莱门莎's own rows, so their old `garrisonIds` give way to the module's pair instead of being
+  kept alongside it — the old official rows stay in the dataset through `garrisonKeep` (§19.4).
+
+Adding content means adding a row to one of those tables (and, for a bond, its `modeBonds` entry); nothing here encodes
+behaviour — the simulation of 巴别塔 lives in `server/sim/content/bonds/core.js` (`installBabel`) and that of 元素 in
+`server/sim/content/bonds/addon/element.js`, and the official builders only ever see official-table shapes they already
+read.
+
+Consequences of the layer on the data of this file. The 巴别塔 block: `bonds` 23 → 24 (core 8 → 9), `chess` 268 → 284
+(visible non-DIY 113 → 121; the 8 new chess are ordinary shop chess and enter the shared pool, which shifts the
+copy-weighted tier shares away from the official research table), `garrisons` 271 (46 effect keys), `items` 115 → 121
+(`EQUIP` 59 normal + 3 MAGIC; the three 自研 装备 are ordinary shop items of tier 2 / 5 / 6, so they enter
+`shopItemsByTier` and every shop item draw sees a longer list — an intended content change that moves the shop RNG
+stream, see `docs/history/0.2.4.md` §29.15), `effects` 362 → 369 (`ITEM` 6 + the 机变 card of §19.3), `tactic cards`
+43 → 44, and `backups.diy.ownedPool` 71 → 66 (five promoted 6★ left the 自选 pool). Because the new bond's
+`powerIdList` is `['babel']`, the three owned picks whose official powers carry babel — 凯尔希, W and 真言 — derive
+`babelShip` in `backups.diy.operators[*].bonds` (§18) like any other core bond, beyond the design's 11-member 名单.
+
+The 元素 block on top of it (2026-10-12): `bonds` 24 → 25 (the add-on bond; core stays 9), `chess` 284 → 286 (visible
+non-DIY 121 → 122; 珊比's two records are ordinary T4 shop chess — the visible tier histogram becomes 18/18/21/23/22/20
+— and both forms enter the shared pool like any other shop chess), `garrisons` 271 → 281 (the five new fiat pairs, the
+four extended official rows that stay as orphans through `garrisonKeep`, and the six rows the replacements would
+otherwise have dropped), `effects` 369 → 370 (`bondeffect_element`, one `BOND` effect), and `backups.diy.ownedPool`
+66 → 65 (`珊比` left the 自选 pool; `backupUnits` 83 → 82, `backupForms` 241 → 238). `items`, `bands`, `tactic cards`
+and every mode's `inactiveBondIds` are untouched; 元素 joins each mode's `activeBondIds` through `modeBonds.active`
+(§19.4), which also moves the per-match 每局随机禁用 draw — a weight-10 add-on bond is one more candidate.
+
+### 19.8 The default skill of a chess (maintainer, 2026-10-13)
+
+A shop chess carries one skill by default — the one the detail card preselects and the one a piece fights with when its
+player never opened 干员配置. It is `act.charShopChessDatas[baseId].defaultSkillIndex`, 0-based over the operator's
+`skills` order (「第 N 个技能」 = `N − 1`), and `buildChess` mirrors it into the record's `skill` / `skills[].isDefault`.
+A PRESET chess's stand-in is itself, so `backupCharSkillIndex` must carry the same index (`checkUnitFormParity` fails
+the build otherwise) — both fields are written together, and **nothing else** about the row moves (the module fields
+`defaultUniEquipId` / `backupCharUniEquipId` / `equipLevel` are untouched by this batch).
+
+| 干员 | chess | 第 N 个技能（索引） | skill | how |
+|---|---|---|---|---|
+| 暴行 | `chess_char_1_05_babel_a/_b` | 2 (1) | 微差爆破 | 自研棋 — `custom.mjs` `members` `skill` |
+| 奥达 | `chess_char_1_06_babel_a/_b` | 2 (1) | 锻锤之力 | 自研棋 |
+| 阿米娅·医疗 | `chess_char_2_05_babel_a/_b` | 1 (0) | 哀恸共情 | 自研棋（已是目标值） |
+| 华法琳 | `chess_char_4_26_a/_b` | 1 (0) | 紧急包扎 | **官方棋** — the official row already carries 0 |
+| 阿斯卡纶 | `chess_char_3_05_babel_a/_b` | 2 (1) | 恩赐 | 自研棋 |
+| 伊内丝 | `chess_char_4_04_a/_b` | 2 (1) | 暗夜无明 | **官方棋** — official 1 |
+| 魔王 | `chess_char_4_25_a/_b` | 3 (2) | 编织重构现世 | **官方棋** — official 2 |
+| 赫德雷 | `chess_char_5_06_babel_a/_b` | 3 (2) | 死境硝烟 | 自研棋 |
+| 逻各斯 | `chess_char_5_07_babel_a/_b` | 3 (2) | 延异视阈 | 自研棋 |
+| 维什戴尔 | `chess_char_6_04_babel_a/_b` | 3 (2) | 爆裂黎明 | 自研棋 |
+| 克莱门莎 | `chess_char_5_clemnt_a/_b` | 2 (1) | 风暴潮 | 自研棋（fiat） |
+| 珊比 | `chess_char_4_27_a/_b` | 2 (1) | 慢慢走~ | 自研棋（本次转正） |
+| 可露希尔 | `chess_char_3_06_babel_a/_b` | 3 (2) | Q.E.D. | 自研棋 |
+
+**No official row is overridden for this.** The three official chess of the batch already carry the wanted index in
+`charShopChessDatas`, so `applyCustom` needs no new table — a scalar override would only be reachable while the value
+differs, and the module's convention is to report and skip such a no-op. The ten 自研 pairs state the index in their own
+rows (`members` `skill`; 珊比's / 克莱门莎's `shopRows`), which is a field of a row this module owns, not a fourth
+official-row exception. The hidden T5 twins of 华法琳 / 魔王 (`chess_char_5_04_a/_b`, `chess_char_5_09_a/_b`) are
+official data and already agree (0 / 2) — they are named by no table here.
+
+**华法琳's 特质 override is withdrawn.** Her visible T4 pair `chess_char_4_26_a/_b` is **still T4** (the T5
+`chess_char_5_04_a/_b` is the official hidden variant, never promoted by this project) and is back on its official
+`garrison_72_a/_b`: `<战斗开始时>使身前一格干员获得特质"开启技能时使自身所属已激活盟约层数 +1 / +2"（每场战斗至多
+**7 / 14** 层）`, which grants the official `garrison_95_a/_b` (`bond_self`, `bond_add_count` 1 / 2,
+`max_add_count_per_battle` **7 / 14**) — exactly the semantics the maintainer asked for, so the fiat pair
+`garrison_173_a/_b` → `garrison_174_a/_b` (4 / 8) is deleted from `tools/content/custom.mjs` and from the dataset, and
+`chessGarrisons` is now empty (the channel stays in use by `elementChessGarrisons`, §19.5). `garrison_72_a/_b` need no
+`garrisonKeep` entry: the hidden T5 pair still names them, and `buildGarrisons` reaches `95` through the granting row's
+blackboard. `docs/research/02-bonds.json`'s 巴别塔 roster and its `layerSourceGarrisonIds` follow (173 → the official
+granted row **95**, the same convention 精准's `garrison_96` uses).
+
+Consequences of the 2026-10-13 batch: `garrisons` **281 → 277** (the four withdrawn fiat rows; the official `72` / `95`
+rows were already in the dataset), `chess` 286 / visible 122 / `bonds` 25 / `items` 121 / `bands` 40 / `effects` 370 /
+`backups` (`ownedPool` 65, 82 units, 238 forms) all unchanged — and every golden family that moved, moved for the
+default skill: `docs/history/0.2.4.md` §29.24.

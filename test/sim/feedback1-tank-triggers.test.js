@@ -39,6 +39,17 @@ const DEVIATED = [
 const ACTIVE = new Set(['skchr_udflow_2']);
 /** 余 S2 厚礼上宾: SKILL_RANGE on its own x-1 (DESIGN §22.10). */
 const SKILL_RANGE_DEVIATED = [['chess_char_6_03_a', 'skchr_yu_2']];
+/**
+ * The `baseId|skillId` keys whose KIT declares a trigger of its own (the kits' `skills[id].trigger`), so the data's
+ * `TAKE_DAMAGE` is not what the battle runs. 珊比 S2 / S3 (the 元素 bond's promoted T4 本源铁卫,
+ * docs/research/17-element-bond.md §3) declare the owner's larger-area ACTIVE_RANGE: S2 on the glue's first five tiles
+ * and S3 on the conveyor — the 余 S2 x-1 precedent of kits/README.md checklist item 5.
+ */
+const KIT_TRIGGER_OVERRIDES = new Set([
+  ...DEVIATED.map(([id, s]) => `${id}|${s}`),
+  ...SKILL_RANGE_DEVIATED.map(([id, s]) => `${id}|${s}`),
+  'chess_char_4_27_a|skchr_thumpy_2', 'chess_char_4_27_a|skchr_thumpy_3',
+]);
 const both = (normalId) => [normalId, CHESS[normalId].goldenId];
 const isDeviated = (c, skillId) => [...DEVIATED, ...SKILL_RANGE_DEVIATED].some(([id, s]) => id === c.baseId && s === skillId);
 const ENEMY = 'enemy_1422_lrsldr';
@@ -172,6 +183,8 @@ test('real battle: 深巡 S1 and every other MANUAL 重装 skill still wait for 
     if (c.profession !== 'TANK' || c.isDiy) continue;
     for (const s of c.skills) {
       if (s.skillType !== 'MANUAL' || s.trigger.rule !== 'TAKE_DAMAGE') continue;
+      // a skill whose KIT declares a trigger of its own is checked by the next test
+      if (KIT_TRIGGER_OVERRIDES.has(`${c.baseId}|${s.skillId}`)) continue;
       const r = firstCast(c.chessId, s.skillId);
       const where = `${c.chessId} ${c.name} ${s.skillId}: ${JSON.stringify(r)}`;
       assert.equal(r.rule, 'TAKE_DAMAGE', where);
@@ -184,4 +197,23 @@ test('real battle: 深巡 S1 and every other MANUAL 重装 skill still wait for 
   assert.ok(n >= 40, `${n} TAKE_DAMAGE records checked`);
   const udflowS1 = firstCast('chess_char_1_04_a', 'skchr_udflow_1');
   assert.ok(udflowS1.cast > 10, `深巡 S1 waits for the enemy to reach and hit her: ${JSON.stringify(udflowS1)}`);
+});
+
+test('real battle: every 重装 skill whose KIT or data rule replaces the hit wait casts on its own trigger (深巡 / 雷蛇 / 灰毫 / 号角 / 余 and 珊比, the 元素 bond\'s T4)', () => {
+  // A TANK MANUAL skill whose trigger is NOT the class row's TAKE_DAMAGE needs no hit: the older tests above cover the
+  // data's own deviations, this one sweeps every record (the data's rule and the kits' own declarations alike, incl.
+  // 珊比's kit — kits/ops/op-thumpy.js gives S2 / S3 the owner's larger-area ACTIVE_RANGE).
+  let n = 0;
+  for (const c of Object.values(CHESS)) {
+    if (c.profession !== 'TANK' || c.isDiy) continue;
+    for (const s of c.skills) {
+      if (s.skillType !== 'MANUAL' || s.trigger.rule === 'TAKE_DAMAGE') continue;
+      const r = firstCast(c.chessId, s.skillId);
+      const where = `${c.chessId} ${c.name} ${s.skillId}: ${JSON.stringify(r)}`;
+      assert.ok(['DEFAULT', 'ACTIVE_RANGE', 'SKILL_RANGE', 'CUSTOM_RANGE'].includes(r.rule), `${where}: a rule that casts on its own`);
+      assert.notEqual(r.reason, 'TAKE_DAMAGE', `${where}: never the hit wait`);
+      n++;
+    }
+  }
+  assert.ok(n >= 10, `${n} non-TAKE_DAMAGE 重装 records checked`);
 });

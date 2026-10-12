@@ -5,7 +5,7 @@
 // present: operator_preset, image_skill_select_outline, skill_select_deco, icon_equip_non; the module type icons of
 // groups.module — lettered tiles without them).
 //
-// Left: the 112 visible chess as one list (tier / class / bond filters, search, 仅看已调整) — a row per operator, its columns
+// Left: the 121 visible chess as one list (tier / class / bond filters, search, 仅看已调整) — a row per operator, its columns
 // aligned (0.2.2; the quick choices of PR #301 by @farridge, laid out as one list instead of three columns of cards — the
 // owner's decision of 2026-10-08): portrait, name and bonds (a click opens the detail), the skills and the elite's modules
 // to tap (不装备 first), the 潜能 and 练度 selects (screens/cultivation.js). Right: the selected chess — its 潜能 / 练度,

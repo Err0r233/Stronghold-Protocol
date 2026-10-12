@@ -56,7 +56,9 @@ describe('变形同构体 — the client rule', () => {
   test('the client rule equals the server\'s (bondsMeta.pieceBonds) for every bond item, normal and golden', () => {
     const gd = new GameData(getData({ log: { warn() {}, error() {}, info() {} } }), 'mode_multi_hard');
     const grants = Object.values(items).filter((r) => r.giveBondId);
-    assert.equal(grants.length, 36, '18 bond items × normal / golden');
+    // 38 = 5 维多利亚 items + 14 other bond items × 2 qualities; the 15th is 巴别塔's 「巴别塔誓言」 (babelShip,
+    // chess_item_2_08_e_a/_b — tools/content/custom.mjs §6.4)
+    assert.equal(grants.length, 38, '19 bond items × normal / golden');
     for (const r of grants) {
       for (const iso of [ISO, ISO_B]) {
         const p = { id: WEARER, items: [{ id: r.id }, { id: iso }] };

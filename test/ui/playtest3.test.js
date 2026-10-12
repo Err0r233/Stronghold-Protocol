@@ -281,8 +281,10 @@ describe('3: the temp overflow row (临时整备区)', () => {
 // ---- 8: the operator's own effect first --------------------------------------------------------------------------------
 
 describe('8: 特质 right under the detail card\'s header', () => {
-  // GitHub #175 (from PR #192 by @kukiC): the card's 7 / 14 is the cap the battle applies
-  test('华法琳\'s normal and elite cards show the 7 / 14 layer caps (GitHub #175)', async () => {
+  // GitHub #175 (from PR #192 by @kukiC): the card shows the cap the battle applies. 华法琳's 特质 is her own official
+  // row again (`garrison_72_a/_b` → `garrison_95_a/_b`, data cap 7 / 14): the 巴别塔 layer's 4 / 8 override was
+  // withdrawn on 2026-10-13 (`chessGarrisons` is empty, docs/DATA.md §19.8), so the card's cap is 7 / 14.
+  test('华法琳\'s normal and elite cards show the 7 / 14 layer caps (GitHub #175; the official row)', async () => {
     await data.loadAll('chess', 'garrisons', 'assets', 'bonds', 'items');
     for (const [id, cap] of [['chess_char_4_26_a', 7], ['chess_char_4_26_b', 14]]) {
       const blocks = ChessDetail({ chess: data.lookup('chess', id), piece: null, editable: false, bonds: [], loadout: null });

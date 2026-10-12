@@ -13,7 +13,10 @@ test('co-op pool doubles the measured single-player capacities; only visible, un
   const pool = new SharedPool(gd, { banned: [] });
   const caps = { 1: 12, 2: 14, 3: 18, 4: 16, 5: 8, 6: 5 };
   assert.equal(pool.entries.size, gd.visibleChess.length);
-  assert.equal(pool.entries.size, 112);
+  // 122 visible non-DIY chess: the official 113 + the 8 members of the 自研 巴别塔 core bond (tools/content/custom.mjs,
+  // docs/research/15-babel-bond.md §2 / §6.3 OPEN-4) + 珊比, the 元素 bond's promoted T4 shop chess
+  // (docs/research/17-element-bond.md §3) — all ordinary shop chess, entering the pool like any other.
+  assert.equal(pool.entries.size, 122);
   for (const [id, e] of pool.entries) {
     const expect = 2 * (DATA.config.economy.poolCopiesOverrides[id] ?? caps[e.tier]);
     assert.equal(e.cap, expect, id);
@@ -22,7 +25,7 @@ test('co-op pool doubles the measured single-player capacities; only visible, un
   }
   const banned = [gd.visibleChess[0], gd.visibleChess[5]];
   const p2 = new SharedPool(gd, { banned });
-  assert.equal(p2.entries.size, 110);
+  assert.equal(p2.entries.size, 120);
   assert.ok(!p2.has(banned[0]) && p2.left(banned[0]) === 0 && p2.take(banned[0]) === 0);
 });
 
@@ -59,12 +62,14 @@ test('odds sanity: level L rolls only tiers ≤ L; level 1 only tier 1; shares �
     const shares = pool.tierShares(level);
     for (const [t, n] of Object.entries(seen)) assert.ok(Math.abs(n / 4000 - shares[t]) < 0.035, `L${level} T${t} ${n / 4000} vs ${shares[t]}`);
   }
-  // research table (full pools, no bans): L6 ≈ 14.0 / 17.4 / 25.0 / 25.7 / 11.1 / 6.9 %
+  // the official research table (full pools, no bans) is 14.0 / 17.4 / 25.0 / 25.7 / 11.1 / 6.9 %; the maintainer's
+  // fiat shop chess add copies to T1/T2/T3/T5/T6 (the 8 巴别塔 members) and to T4 (珊比, the 元素 bond's promotion), which
+  // shifts the copy-weighted shares to the values below — the official figures stay in this comment for traceability.
   const s6 = pool.tierShares(6);
-  const want = { 1: 0.14, 2: 0.174, 3: 0.25, 4: 0.257, 5: 0.111, 6: 0.069 };
-  for (const t of Object.keys(want)) assert.ok(Math.abs(s6[t] - want[t]) < 0.01, `T${t} ${s6[t]}`);
+  const want = { 1: 0.14071, 2: 0.16120, 3: 0.25820, 4: 0.25137, 5: 0.12022, 6: 0.06831 };
+  for (const t of Object.keys(want)) assert.ok(Math.abs(s6[t] - want[t]) < 0.001, `T${t} ${s6[t]}`);
   const s2 = pool.tierShares(2);
-  assert.ok(Math.abs(s2[1] - 0.447) < 0.01 && Math.abs(s2[2] - 0.553) < 0.01);
+  assert.ok(Math.abs(s2[1] - 0.46606) < 0.001 && Math.abs(s2[2] - 0.53394) < 0.001);   // official 44.7 / 55.3 %
 });
 
 test('rolls are copy-weighted: an exhausted chess never rolls; tier/filter options work', () => {
@@ -107,7 +112,8 @@ test('effect-only items are never shop items: not in shopItemsByTier, never in t
   assert.equal(DATA.items.chess_item_1_01_e_a.shopExcluded, false, 'the plain 维式重锤 is sold');
   const gd = gdOf();
   const listed = new Set(Object.values(gd.shopItemsByTier).flat());
-  assert.equal(listed.size, 51, '56 normal equipment − 5 effect-only');
+  // 59 normal equipment − 5 effect-only = 54 shop items (the three 自研 巴别塔 装备 are ordinary shop items)
+  assert.equal(listed.size, 54, '59 normal equipment − 5 effect-only');
   for (const id of EFFECT_ONLY) assert.ok(!listed.has(id), `${id} not a shop item`);
   assert.ok(listed.has('chess_item_1_01_e_a'));
   // the shop item slot at every level
@@ -166,7 +172,7 @@ test('the match pool excludes banned chess; m.public lists disabled bonds and ba
   assert.equal(pub.drawnDisabledBonds.length, 7);
   assert.ok(pub.bannedChess.length > 0);
   for (const id of pub.bannedChess) assert.ok(!h.m.pool.has(id), `${id} should not be in the pool`);
-  assert.equal(h.m.pool.entries.size + pub.bannedChess.length, 112);
+  assert.equal(h.m.pool.entries.size + pub.bannedChess.length, 122);
   checkInvariants(h.m);
   h.m.dispose();
 });

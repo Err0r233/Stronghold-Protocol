@@ -40,6 +40,42 @@ export function requireActiveOf(g) {
   return /已激活|激活且/.test(d);
 }
 
+/**
+ * Per-BOND requirement of a multi-bond row. A fiat row EXTENDS an official one by adding a bond to its `bbStr.bond`
+ * list (tools/content/custom.mjs: 菲莱's 萨尔贡 + 元素, 烛煌's 炎 / 维多利亚 + 元素), and the edit cannot restate the
+ * official bond's own 「已激活」 in the text for one of the two only once. So the row-level `requireActiveOf` (which
+ * reads the TEXT) is kept for a bond the data's other rows already describe that way, and a bond that needs the other
+ * path is listed here per row and per bond.
+ *
+ * The table now holds two kinds of entry, both kept deliberately:
+ *   · 菲莱's `sargonShip` / `elementShip` pair — LOAD-BEARING. Her text reads 「使已激活的【萨尔贡】…【元素】…」 for
+ *     both, but 元素 needs two distinct members on the board to be active and she is usually the only 元素 piece there,
+ *     so a text-derived `true` would make the 元素 half a silent no-op. [ASSUMED: recorded in
+ *     docs/research/17-element-bond.md §5.]
+ *   · 烛煌's three and 珊比's one — text-EQUIVALENT (their rows say 「无需激活盟约」, which is exactly what
+ *     `requireActiveOf` returns). They stay as the explicit record of the intended path.
+ * 妮芙's old entry (`swiftShip: true, elementShip: false`) is GONE: the maintainer's ruling of 2026-10-12 makes 元素
+ * require activation like 迅捷, exactly as her text 「使已激活的【迅捷】【元素】」 says — the row now needs no entry at
+ * all and `requireActiveForBond` falls through to `requireActiveOf` (`true` for both bonds).
+ */
+const BOND_REQUIRE_OVERRIDE = Object.freeze({
+  // 菲莱's extended row targets 萨尔贡 (its own official row reads 「使已激活的【萨尔贡】」) and 元素 (no second member
+  // on the board at the cast, so it keeps the 无需激活 path).
+  garrison_175_a: { sargonShip: true, elementShip: false }, garrison_175_b: { sargonShip: true, elementShip: false },
+  // 烛煌's extended row (「无需激活盟约」) targets 炎 / 维多利亚 / 元素 — all three without activation.
+  garrison_176_a: { yanShip: false, victoriaShip: false, elementShip: false },
+  garrison_176_b: { yanShip: false, victoriaShip: false, elementShip: false },
+  // 妮芙's extended row (「使已激活的【迅捷】【元素】」): no entry — both bonds take the text-derived `true`, which the
+  // maintainer's ruling of 2026-10-12 confirms (the 元素 clause is a real requirement, not a no-op exception).
+  // 珊比's single-bond row (「无需激活盟约」).
+  garrison_179_a: { elementShip: false }, garrison_179_b: { elementShip: false },
+});
+const requireActiveForBond = (g, bond) => {
+  const o = BOND_REQUIRE_OVERRIDE[g && g.garrisonId];
+  if (o && Object.prototype.hasOwnProperty.call(o, bond)) return o[bond];
+  return requireActiveOf(g);
+};
+
 const bondOrder = (ctx) => (Array.isArray(ctx.gd && ctx.gd.bondIds) ? ctx.gd.bondIds : Object.keys(ctx.data.bonds || {}));
 
 /** Active bond with the most layers (ties → bond data order), or null. */
@@ -103,7 +139,16 @@ H.SERVER_ADD_BOND = {
       const g = ctx.gd.garrison(gid);
       if (g && g !== garrison && g.effectType === 'SERVER_ADD_MULTIPLE_BOND' && g.eventType === garrison.eventType && g.desc === garrison.desc) for (const b of ids(g.bbStr && g.bbStr.bond)) covered.add(b);
     }
-    addAll(ctx, bonds.filter((b) => !covered.has(b)), num(bb.count), requireActiveOf(garrison));
+    // Per bond: a row this file lists in BOND_REQUIRE_OVERRIDE (a fiat extension of an official row) decides for
+    // itself; every other row keeps the text-derived flag (requireActiveOf) — 妮芙's extended 迅捷 / 元素 row since
+    // the maintainer's ruling of 2026-10-12.
+    const n = num(bb.count);
+    let total = 0;
+    for (const b of bonds) {
+      if (!b || covered.has(b)) continue;
+      total += ctx.addLayers(b, n, { requireActive: requireActiveForBond(garrison, b) });
+    }
+    return total;
   },
 };
 
@@ -119,15 +164,17 @@ H.SERVER_ADD_BOND_METHOD = {
     const { bb, bbStr, garrison } = ctx.source;
     const multi = num(bb.multi, 1);
     const bonds = ids(bbStr.bond);
-    const ra = requireActiveOf(garrison);
     const me = selfView(ctx);
+    // Per bond, like SERVER_ADD_BOND: a fiat extension (菲莱's 萨尔贡 + 元素) decides for each of its bonds; 妮芙's
+    // extended 迅捷 / 元素 row needs no entry — both take the text-derived 「已激活」 (maintainer, 2026-10-12).
+    const add = (b, n) => addAll(ctx, [b], n, requireActiveForBond(garrison, b));
     switch (bbStr.add_method) {
-      case 'shoplv': addAll(ctx, bonds, ctx.shopLevel() * multi, ra); break;
-      case 'round_gain_char': addAll(ctx, bonds, (ctx.roundStats().gainedChess | 0) * multi, ra); break;
-      case 'hand_count': addAll(ctx, bonds, ctx.hand().filter((p) => p && p.kind === 'chess').length * multi, ra); break;
-      case 'same_row': addAll(ctx, bonds, sameRowCount(ctx, me) * multi, ra); break;
+      case 'shoplv': for (const b of bonds) add(b, ctx.shopLevel() * multi); break;
+      case 'round_gain_char': for (const b of bonds) add(b, (ctx.roundStats().gainedChess | 0) * multi); break;
+      case 'hand_count': for (const b of bonds) add(b, ctx.hand().filter((p) => p && p.kind === 'chess').length * multi); break;
+      case 'same_row': for (const b of bonds) add(b, sameRowCount(ctx, me) * multi); break;
       case 'same_bond_diff_lv':
-        for (const b of bonds) addAll(ctx, [b], distinctTiers(ctx, (p) => metaBonds(ctx, p).includes(b)).size * multi, ra);
+        for (const b of bonds) add(b, distinctTiers(ctx, (p) => metaBonds(ctx, p).includes(b)).size * multi);
         break;
       default: break;
     }

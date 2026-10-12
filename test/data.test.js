@@ -75,12 +75,16 @@ test('numbers: every stats/bb/enemyScale object holds only finite numbers (no nu
   assert.deepEqual(bad.slice(0, 10), [], `${bad.length} bad numeric fields`);
 });
 
-test('chess: 266 records, 112 visible non-DIY (16/17/19/22/19/19 per tier)', () => {
-  assert.equal(Object.keys(chess).length, 266);
-  assert.equal(visible.length, 112);
+test('chess: 286 records, 122 visible non-DIY (18/18/21/23/22/20 per tier)', () => {
+  // The official tables have 268 chess / 113 visible non-DIY; tools/content/custom.mjs (the maintainer's fiat layer,
+  // 巴别塔 + 克莱门莎 + the 元素 add-on bond's 珊比) adds the 8 巴别塔 members (16 records, 8 visible) and 珊比's
+  // promotion out of the 自选 pool (2 records, 1 visible) — docs/research/15-babel-bond.md §2, §6.3 OPEN-4;
+  // docs/research/17-element-bond.md §3.
+  assert.equal(Object.keys(chess).length, 286);
+  assert.equal(visible.length, 122);
   const perTier = {};
   for (const c of visible) perTier[c.tier] = (perTier[c.tier] || 0) + 1;
-  assert.deepEqual(perTier, { 1: 16, 2: 17, 3: 19, 4: 22, 5: 19, 6: 19 });
+  assert.deepEqual(perTier, { 1: 18, 2: 18, 3: 21, 4: 23, 5: 22, 6: 20 });
   assert.equal(normalChess.filter((c) => c.isDiy).length, 4);
   assert.equal(normalChess.filter((c) => c.isHidden).length, 17);
 });
@@ -129,9 +133,11 @@ test('chess: every non-DIY chess has stats, range, classification and a resolvab
   assert.equal(chess.chess_char_1_01_a.targetPriority, 'fly');
 });
 
-test('bonds: 23 bonds with valid members, thresholds and effects', () => {
-  assert.equal(Object.keys(bonds).length, 23);
-  assert.equal(Object.values(bonds).filter((b) => b.isCore).length, 8);
+test('bonds: 25 bonds with valid members, thresholds and effects', () => {
+  // 23 official bonds + the maintainer's 自研 ones: the core bond 巴别塔 (babelShip) and the add-on bond 元素
+  // (elementShip) — tools/content/custom.mjs, docs/research/15-babel-bond.md / 17-element-bond.md §1.
+  assert.equal(Object.keys(bonds).length, 25);
+  assert.equal(Object.values(bonds).filter((b) => b.isCore).length, 9);
   const modes = new Set(['BOARD', 'BOARD_AND_DECK', 'BOARD_ALL_CHESS']);
   for (const b of Object.values(bonds)) {
     assert.ok(modes.has(b.countMode), `${b.bondId}: countMode ${b.countMode}`);
@@ -154,18 +160,18 @@ test('bonds: 23 bonds with valid members, thresholds and effects', () => {
   for (const c of normalChess) for (const b of c.bonds) assert.ok(bonds[b].members.includes(c.chessId), `${c.chessId} not in ${b}.members`);
 });
 
-test('garrisons: all referenced exist; 43 distinct effect keys', () => {
+test('garrisons: all referenced exist; 46 distinct effect keys', () => {
   const keys = new Set(Object.values(garrisons).map((g) => g.effectKey));
-  assert.equal(keys.size, 43);
+  assert.equal(keys.size, 46);
   for (const g of Object.values(garrisons)) {
     assert.ok(typeof g.eventType === 'string' && typeof g.desc === 'string', g.garrisonId);
     for (const o of g.owners) assert.ok(chess[o], `${g.garrisonId}: owner ${o}`);
   }
 });
 
-test('items: 115 item chess with valid effects, bonds and golden links', () => {
-  assert.equal(Object.keys(items).length, 115);
-  assert.equal(Object.values(items).filter((i) => i.itemType === 'EQUIP' && !i.isGolden).length, 56);
+test('items: 121 item chess with valid effects, bonds and golden links', () => {
+  assert.equal(Object.keys(items).length, 121);
+  assert.equal(Object.values(items).filter((i) => i.itemType === 'EQUIP' && !i.isGolden).length, 59);
   assert.equal(Object.values(items).filter((i) => i.itemType === 'MAGIC').length, 3);
   for (const it of Object.values(items)) {
     assert.ok(effects[it.effectId], `${it.id}: effect ${it.effectId}`);
@@ -430,7 +436,7 @@ test('chess/tokens: talent tokens resolve and every token variant says where it 
     assert.equal(t.placeable, t.displayType !== 'HIDDEN' && made, `${t.tokenId} (${t.name}): placeable`);
   }
   assert.deepEqual(Object.values(tokens).filter((t) => t.placeable).map((t) => t.name).sort(),
-    ['医疗探机', '诅咒娃娃', '斯卡蒂的海嗣', '流形', '狼群', '爬行号·防护单元'].sort());
+    ['医疗探机', '诅咒娃娃', '斯卡蒂的海嗣', '流形', '狼群', '爬行号·防护单元', '指挥中心'].sort());
   assert.equal(tokens.enemy_9012_acloon.stats.deployLimit, tokens.enemy_9012_acloon.deployLimit);
 });
 
@@ -513,8 +519,10 @@ test('chess: skills[] = every skill unlocked at the status, at the chess skill l
     assert.ok(wider(s.trigger.customRangeGrid, c.rangeGrid), `${c.chessId} ${s.skillId}: its running range strictly contains ${c.rangeId}`);
     if (s.rangeGrid) assert.deepEqual(s.trigger.customRangeGrid, s.rangeGrid, `${c.chessId} ${s.skillId}: the skill's own grid`);
   }
-  assert.equal(active.length, 78, '39 skills, normal + elite');
-  assert.equal(new Set(active.map(([c, s]) => `${c.baseId} ${s.skillId}`)).size, 39);
+  // 88 = 44 (baseId, skill) pairs × normal + elite; the 3 pairs of the fiat members 阿斯卡纶 S3 / 赫德雷 S3 / 逻各斯 S3
+  // (chess_char_3_05_babel_a, chess_char_5_06_babel_a, chess_char_5_07_babel_a) are part of the count.
+  assert.equal(active.length, 88, '44 skills, normal + elite');
+  assert.equal(new Set(active.map(([c, s]) => `${c.baseId} ${s.skillId}`)).size, 44);
   // from the SEARCH row (解放者 / 阵法术师 / 安洁莉娜) and 深巡 S2's deviation: the owner's decisions of 2026-10-05
   const fromSearch = active.filter(([, s]) => s.trigger.rawRule === 'SEARCH').map(([c, s]) => `${c.baseId} ${s.skillId}`);
   assert.deepEqual([...new Set(fromSearch)].sort(), ['chess_char_3_08_a skchr_mint_1', 'chess_char_4_05_a skchr_beewax_1', 'chess_char_4_24_a skchr_billro_3', 'chess_char_5_19_a skchr_mlynar_2', 'chess_char_5_20_a skchr_aglina_3']);

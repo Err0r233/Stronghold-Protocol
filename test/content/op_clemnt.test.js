@@ -1,12 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { makeBattle, enemyRec, checkInvariants } from '../helpers/battleHarness.js';
-import { KITTED_CHARS } from '../../server/sim/content/kits/index.js';
-import { diyPool } from '../../shared/diy.js';
+import { KITS } from '../../server/sim/content/kits/index.js';
 import { performAttack, effectiveProfile } from '../../server/sim/ai.js';
 const C = 'char_4231_clemnt';
-const data = Object.fromEntries(['chess', 'backups'].map((f) => [f, JSON.parse(readFileSync(new URL(`../../data/${f}.json`, import.meta.url)))]));
 const approx = (a, b, label = '') => assert.ok(Math.abs(a - b) < 1e-5 * Math.max(1, Math.abs(b)), `${label}: ${a} != ${b}`);
 const enemy = (key, opts = {}) => enemyRec({ key, hp: 1e8, atk: 0, speed: 0, ...opts });
 const defs = { enemies: { dummy: enemy('dummy'), light: enemy('light', { mass: 3 }), mid: enemy('mid', { mass: 4 }), heavy: enemy('heavy', { mass: 9 }),
@@ -14,7 +11,7 @@ const defs = { enemies: { dummy: enemy('dummy'), light: enemy('light', { mass: 3
 function field({ tier = 6, elite = true, skill = 0, potential = 6, dir = 'RIGHT', row = 10, col = 3, flags = {} } = {}) {
   const h = makeBattle({ seed: 23, autoFinish: false, timeLimit: 180, defs, flags,
     hooks: ['damaged', 'attack', 'elementBurst', 'ammoUsed'], captureNoisy: true,
-    units: [{ uid: 1, diy: { slot: tier, charId: C, skillIndex: skill }, elite, potential, row, col, dir }] });
+    units: [{ uid: 1, chessId: elite ? 'chess_char_5_clemnt_b' : 'chess_char_5_clemnt_a', skillIndex: skill, elite, potential, row, col, dir }] });
   h.step(); return { h, u: h.unit(1) };
 }
 function done(h) { checkInvariants(h.b); assert.deepEqual(h.b.errors, []); }
@@ -41,10 +38,9 @@ test('风暴潮 auto-cast rejects distant/hidden/sleeping flyers and waits throu
   h.run(0.5); assert.equal(u.skill.activations, 1); done(h);
 });
 
-test('克莱门莎 is selectable with authored skills in both slots, every form and potential', () => {
-  assert.ok(KITTED_CHARS.includes(C));
+test('克莱门莎 is selectable as a preset T5 operator with authored skills in both forms and every potential', () => {
+  assert.equal(typeof KITS.chess_char_5_clemnt_a, 'function');
   for (const tier of [5, 6]) {
-    assert.ok(diyPool(tier, { data, kitted: KITTED_CHARS }).includes(C));
     for (const elite of [false, true]) for (const skill of [0, 1, 2]) for (const potential of [1, 6]) {
       const { h, u } = field({ tier, elite, skill, potential });
       assert.equal(u.def.charId, C); assert.equal(u.kit.skillSource, 'skills'); assert.ok(!u.kit.generic);

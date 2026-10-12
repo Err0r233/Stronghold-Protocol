@@ -591,6 +591,15 @@ effects (炎佑 ×1.5 at 9 炎, 虚弱, 停顿 …), the char_attribute_mul 特�
 attributes) and the unit's 练度 `cultMul` (自持有, the same char_attribute_mul key, 0.2.2: ATK / DEF / max HP of the owned
 operator's tier, §12). `atkFinal` is the **最终加算** (PRTS `A_f = F_t[(A + D_p)(1 + D_t) + F_p]`: added after the 直接乘算, inside
 the 最终乘算): 阿戈尔's devoured base ATK ("基础攻击力（最终加算）", DESIGN §24.7) — a skill's ATK +% does not scale it.
+
+**A layer reader's own timing (DESIGN §29.20).** The 特质 reader `act1autochess_gar_eff_attrByBond`
+(`content/garrisons/battle.js`) judges `floor(Σ active layers of its bonds / divide_num)` **once per (re)deployment**
+and hangs the passive buff then (official note 「※仅在每次部署时判定盟约层数」): a layer gain while the unit stands on
+the field never refreshes it, a redeploy / 突袭 landing / 【移动】 (all `deploy` events) judges again, and a unit that
+never deploys carries none — including the row's fixed `base_*` half (the fixed half of a row whose official text
+carries it on a separate `garrison_03` / `garrison_137` row is that row's own installer buff and is unaffected). The
+three sibling readers (`respawnTimeByBond`, `attrByBond_add_onstart`'s "部署后100秒内" window, `ab_damageScaleByBond`)
+carry no such note and still follow `layerGain` (`battle.on('layerGain')` → one deferred recompute per gain).
 Damage multipliers (`dmgDealtMul`, "伤害提升至X%"; `*TakenMul`, 脆弱 / "受到的伤害+X%") multiply each other
 (PRTS 游戏数据基础 "同种倍率间叠乘"), same-named statuses keep the strongest — catalogue statuses (§3) and the content
 effects routed through `battle.applyStrongest` (§3: 奥术, 灵知 坚冰, 莱恩哈特 / 缄默德克萨斯 RES cuts), also across the two
@@ -1245,7 +1254,11 @@ skill; the drone's stats come from `tokens.json variants[chess_char_2_02_a]`; it
 and its token kit withdraws it after 10 s. A kit whose summon is not a hand piece spawns it itself:
 `battle.spawnToken(unit, tokenId, r, c, { duration })`. A summon past its data `deployLimit` per owner withdraws the
 oldest one, except the skill summons of `tokens.js SKILL_SUMMON_UNCAPPED`, whose data limit is a hand count the skill
-ignores: 维娜 S3 places a 黄金盟誓 on every free deployable melee tile of her talent-1 area, fences included.)
+ignores: 维娜 S3 places a 黄金盟誓 on every free deployable melee tile of her talent-1 area, fences included. Two
+summons whose behaviour lives entirely in the owner's kit still carry a data-default entry in `tokens.js RAW_KITS` —
+魂灵之影 (维什戴尔: `spawnToken(..., { kit: shadowKit(host) })`) and 指挥中心 (可露希尔's 巴别塔 deployable) — both
+`inert()`, so a spawn with no owner kit (a test, a tool, future content) runs the record's own stats with no attack
+instead of falling back to the generic kit. The owner-provided kit always wins.)
 
 **6. AUTO heal skill — 古米 `chess_char_1_10_a` 备用军粮** (自动触发, bb `heal_scale 1.15`; PRTS 备注: cast once a
 healable ally of the skill range is injured — no enemy needed — then her next normal attack heals that ally):

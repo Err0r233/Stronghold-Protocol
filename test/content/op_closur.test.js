@@ -1,47 +1,49 @@
-// test/content/op_closur.test.js — the 自选 operator kit of 可露希尔 (char_4228_closur, 6★ 战术家; kit
-// server/sim/content/kits/ops/op-closur.js) and of her 援军 指挥中心 (token_10066_closur_ourbase), fielded the production way (a
-// DIY slot + its `diy` pick, simdata getDiy; the 指挥中心 as the placed hand piece of her player) in every form: tiers 5 / 6,
-// normal (E2 Lv1, skill rank 4, no module) and elite (E2 Lv60, rank 7) with no module or TAC-X 给自己的小奖杯 at stage 1
-// (tier 5) / 3 (tier 6). Numbers from data/backups.json; the fidelity checklist of kits/README.md.
-// Run: node --test test/content/op_closur.test.js
+// test/content/op_closur.test.js — the kit of 可露希尔 (char_4228_closur, 6★ 战术家; server/sim/content/kits/ops/op-closur.js)
+// and of her 援军 指挥中心 (token_10066_closur_ourbase), fielded the production way after OPEN-4 promoted her to a
+// 「巴别塔」 shop chess: the record of chess_char_3_06_babel_a (E2 Lv1, skill rank 4) / _b (E2 Lv60, rank 7) in
+// data/chess.json, registered by ops/chess_char_3_06_babel-closur.js (her charId left `backups.json units` and
+// `diy.ownedPool`, so the old 自选 slot path is gone). The 指挥中心 is still the placed hand piece of her player and its
+// variants are keyed by the chess pair in data/tokens.json. Numbers from data/chess.json / data/tokens.json; the fidelity
+// checklist of kits/README.md.
+// 转正后的商店棋照官方 PRESET 惯例带模组（maintainer 2026-10-12「为维什戴尔等有模组的角色添加模组」）：精锐 `_b`
+// `equipLevel` 1（T3）⇒ TAC-X 给自己的小奖杯活性（`module.active` true，`modules[]` = TAC-X），普通 `_a` 保持
+// `equipLevel` 0。TAC-X 一阶带来 maxHp +150 / atk +20 / def +15 与隐藏天赋 `damage_scale` 0.85（kit 读它：被某个
+// 援军阻挡的敌人打那个援军时 ×0.85），下面按数据读回并**实跑**核对。
+// Run: node test/content/op_closur.test.js
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { makeBattle, enemyRec, checkInvariants } from '../helpers/battleHarness.js';
-import { KITTED_CHARS, OPERATOR_KITS, KITS } from '../../server/sim/content/kits/index.js';
-import { diyPool, validateDiyPicks } from '../../shared/diy.js';
+import { KITTED_CHARS, KITS } from '../../server/sim/content/kits/index.js';
 import { BASE, SHIELD_KEY, S2_KEY, RHODES_KEY, SLOWDOWN } from '../../server/sim/content/kits/ops/op-closur.js';
 import { COLS } from '../../server/sim/constants.js';
 
 const load = (f) => JSON.parse(readFileSync(new URL(`../../data/${f}.json`, import.meta.url), 'utf8'));
 const CHESS = load('chess');
-const BACKUPS = load('backups');
+const TOKENS = load('tokens');
 const CL = 'char_4228_closur';
-const FORMS = BACKUPS.units[CL].forms;
-const TOKREC = BACKUPS.tokens[BASE];
-const SLOT = { 5: 'chess_char_5_diy1_a', 6: 'chess_char_6_diy1_a' };
-const TX = 'uniequip_002_closur';
+const A = 'chess_char_3_06_babel_a', B = 'chess_char_3_06_babel_b';
+const rec = (elite) => CHESS[elite ? B : A];
+const TOKREC = TOKENS[BASE];
+const TX = 'uniequip_002_closur';   // the elite's only ADVANCED module, its active default
 const S1 = 'skchr_closur_1', S2 = 'skchr_closur_2', S3 = 'skchr_closur_3';
-const statusOf = (tier, elite) => (elite ? (tier === 5 ? '2/60/7/1' : '2/60/7/3') : '2/1/4/0');
-const formOf = (tier, elite) => FORMS[statusOf(tier, elite)];
-const skillOf = (tier, elite, id) => formOf(tier, elite).skills.find((s) => s.skillId === id);
-const modOf = (tier, mod) => (mod ? formOf(tier, true).modules.find((m) => m.uniEquipId === mod) : null);
-const talentOf = (tier, elite, mod, i) => modOf(tier, elite ? mod : null)?.talentChanges?.find((t) => t.talentIndex === i) ?? formOf(tier, elite).talents.find((t) => t.index === i);
-const tokVariant = (tier, elite) => TOKREC.variants[`${CL}@${statusOf(tier, elite)}`];
+const skillOf = (elite, id) => rec(elite).skills.find((s) => s.skillId === id);
+const talentOf = (elite, i) => rec(elite).talents.find((t) => t.index === i);
+const tokVariant = (elite) => TOKREC.variants[elite ? B : A];
 const approx = (a, b, msg, eps = 1e-6) => assert.ok(Math.abs(a - b) <= eps * Math.max(1, Math.abs(b)), `${msg}: ${a} vs ${b}`);
 const dummy = (key, o = {}) => enemyRec({ key, hp: 1e9, speed: 0, mass: 0, ...o });
 const ENEMIES = { enemy_dummy: dummy('enemy_dummy'), enemy_fly: dummy('enemy_fly', { motion: 'FLY' }), enemy_atk: dummy('enemy_atk', { atk: 2000, bat: 1 }) };
-const FORMS_ALL = [[5, false, null], [6, false, null], ...[5, 6].flatMap((t) => [null, TX].map((m) => [t, true, m]))];
-const label = ([tier, elite, mod]) => `T${tier} ${elite ? 'elite' : 'normal'} ${mod ?? 'none'}`;
+const FORMS_ALL = [[false], [true]];
+const label = ([elite]) => (elite ? 'elite' : 'normal');
 const YAK = 'chess_char_1_02_a', TEXAS = 'chess_char_1_08_a', PODEGO = 'chess_char_1_13_a';
 const tk = (r, c) => r * COLS + c;
 
 /**
  * 可露希尔 as uid 1 at (row, col) facing RIGHT; `base` = the 指挥中心 piece's tile (uid 2) or null; `others` as given.
  */
-function field({ tier = 5, elite = false, mod = null, skill = 0, row = 10, col = 4, base = [10, 6], others = [], seed = 5 } = {}) {
-  const op = { uid: 1, diy: { slot: SLOT[tier], charId: CL, skillIndex: skill, uniEquipId: mod }, elite, row, col };
+function field({ elite = false, skill = 0, row = 10, col = 4, base = [10, 6], others = [], seed = 5 } = {}) {
+  const op = { uid: 1, chessId: elite ? B : A, skillIndex: skill, elite, row, col };
   const piece = base ? [{ uid: 2, kind: 'token', tokenId: BASE, ownerUid: 1, row: base[0], col: base[1] }] : [];
   const h = makeBattle({
     defs: { enemies: ENEMIES }, timeLimit: 900, autoFinish: false, seed,
@@ -65,52 +67,86 @@ function dpLog(h) {
   return log;
 }
 
-test('可露希尔 in every 自选 form: her kit (all three skills authored), the form\'s stats + module attributes, 3-3, 战术家 (ranged physical, hits air, blocks 1), ground-targetable, the triggers (S1 at full SP); the placed 指挥中心 deploys with its variant\'s stats, no attack, 禁疗, blocks 2, its range by her skill (x-5 / x-4 / x-6); no generic 援军', () => {
-  assert.equal(OPERATOR_KITS[CL], KITS[CL]);
+test('可露希尔 in both forms: her kit (all three skills authored), the record\'s stats (no module attributes), 3-3, 战术家 (ranged physical, hits air, blocks 1), ground-targetable, the triggers (S1 at full SP); the placed 指挥中心 deploys with its variant\'s stats, no attack, 禁疗, blocks 2, its range by her skill (x-5 / x-4 / x-6); no generic 援军', () => {
+  assert.equal(typeof KITS[A], 'function');
   for (const f of FORMS_ALL) {
-    const [tier, elite, mod] = f;
+    const [elite] = f;
     for (const skill of [0, 1, 2]) {
-      const { h, u, t } = field({ tier, elite, mod, skill });
-      const form = formOf(tier, elite), m = elite ? modOf(tier, mod) : null, sk = form.skills[skill];
-      assert.deepEqual([u.def.charId, u.def.diyFor, u.skill.id, !!u.kit.generic, u.kit.skillSource], [CL, SLOT[tier], sk.skillId, false, 'skills'], label(f));
-      assert.deepEqual([u.base.maxHp, u.base.atk, u.base.def], [form.stats.maxHp + (m?.attr.maxHp ?? 0), form.stats.atk + (m?.attr.atk ?? 0), form.stats.def + (m?.attr.def ?? 0)], `${label(f)}: stats`);
+      const { h, u, t } = field({ elite, skill });
+      const r = rec(elite), sk = r.skills[skill];
+      assert.deepEqual([u.def.charId, u.def.baseId, u.skill.id, !!u.kit.generic, u.kit.skillSource], [CL, A, sk.skillId, false, 'skills'], label(f));
+      assert.deepEqual([u.base.maxHp, u.base.atk, u.base.def], [r.stats.maxHp, r.stats.atk, r.stats.def], `${label(f)}: stats`);
       assert.deepEqual([u.s.blockCnt, u.profile.attack, u.profile.canHitFly, u.profile.dmgType, u.profile.sub, u.base.bat], [1, 'ranged', true, 'phys', 'tactician', 1], `${label(f)}: 战术家`);
-      assert.deepEqual(u.liveRangeGrid, form.rangeGrid, `${label(f)}: 3-3`);
+      assert.deepEqual(u.liveRangeGrid, r.rangeGrid, `${label(f)}: 3-3`);
       assert.ok(!u.s.flags.liftoff && !u.s.flags.camou && !u.s.flags.stealth, `${label(f)}: ground enemies target her`);
       assert.deepEqual([u.skill.rule, u.skill.spCost], [skill === 0 ? 'SP_FULL' : sk.trigger.rule, sk.spCost], `${label(f)}: trigger`);
       if (skill > 0) assert.deepEqual([sk.trigger.rule, sk.trigger.rawRule], ['SP_FULL', 'ALWAYS'], `${label(f)}: the 战术家 row`);
       else assert.equal(sk.trigger.rule, 'DEFAULT', `${label(f)}: the data's AUTO rule (the kit fires it at full SP)`);
-      const v = tokVariant(tier, elite);
+      const v = tokVariant(elite);
       assert.ok(t && t.uid === 2 && t.tileR === 10 && t.tileC === 6, `${label(f)}: the placed 指挥中心 on its tile`);
       assert.deepEqual([t.base.maxHp, t.base.def, t.s.blockCnt, !!t.profile.noAttack, !!t.s.flags.noHeal], [v.stats.maxHp, v.stats.def, 2, true, true], `${label(f)}: 指挥中心`);
-      const grid = skill === 0 ? v.skill.rangeGrid : v.bySkill[String(skill)].skill.rangeGrid;
+      // The 指挥中心's variants follow her skill slot: `v.skill` is the DEFAULT form's variant (S3 since the
+      // maintainer's 2026-10-13 batch moved her default from S1 to S3), `v.bySkill[i]` every other selectable skill
+      const defIdx = r.skill.index;
+      const grid = skill === defIdx ? v.skill.rangeGrid : v.bySkill[String(skill)].skill.rangeGrid;
       assert.deepEqual(t.liveRangeGrid, grid, `${label(f)}: its range by her S${skill + 1}`);
       assert.equal(h.b.allyUnits.filter((a) => a.defId === 'token_tactician_reinforce').length, 0, `${label(f)}: no generic 援军`);
       assert.equal(u.trait.reinforcement, t, `${label(f)}: her 援军`);
       done(h);
     }
   }
-  assert.deepEqual([modOf(5, TX).attr, modOf(6, TX).attr], [{ maxHp: 150, atk: 20, def: 15 }, { maxHp: 180, atk: 30, def: 25 }]);
-  assert.deepEqual([tokVariant(5, false).stats.maxHp, tokVariant(5, true).stats.maxHp, tokVariant(5, true).skill.rangeId, tokVariant(5, true).bySkill['1'].skill.rangeId, tokVariant(5, true).bySkill['2'].skill.rangeId], [2620, 3054, 'x-5', 'x-4', 'x-6']);
+  assert.deepEqual([tokVariant(false).stats.maxHp, tokVariant(true).stats.maxHp, tokVariant(true).skill.rangeId, tokVariant(true).bySkill['0'].skill.rangeId, tokVariant(true).bySkill['1'].skill.rangeId], [2620, 3054, 'x-6', 'x-5', 'x-4']);
 });
 
-test('a 自选 pick: 可露希尔 is offered at tiers 5 and 6 and a roster with her passes validateDiyPicks', () => {
-  const data = { chess: CHESS, backups: BACKUPS };
-  assert.ok(KITTED_CHARS.includes(CL));
-  for (const t of [5, 6]) assert.ok(diyPool(t, { data, kitted: KITTED_CHARS }).includes(CL), `tier ${t}`);
-  assert.deepEqual(validateDiyPicks({ [SLOT[5]]: { charId: CL, skillIndex: 1, uniEquipId: TX } }, { data, kitted: KITTED_CHARS }),
-    { ok: true, picks: { [SLOT[5]]: { charId: CL, skillIndex: 1, uniEquipId: TX } } });
+test('a 商店棋: 可露希尔 is the visible T3 巴别塔 preset with a hand-authored kit — and is no longer a 自选 pick', () => {
+  for (const id of [A, B]) {
+    const r = CHESS[id];
+    assert.deepEqual([r.charId, r.tier, r.visible, r.chessType, r.isDiy], [CL, 3, true, 'PRESET', false], id);
+    assert.ok(r.bonds.includes('babelShip') && r.bonds.includes('investShip'), id);
+  }
+  // OPEN-4: her charId left `backups.json diy.ownedPool`, so the 自选 picker no longer offers her (KITTED_CHARS lists the
+  // picks a 自选 slot may field — the shop chess is fielded by its chess id instead, ops/chess_char_3_06_babel-closur.js)
+  assert.equal(KITTED_CHARS.includes(CL), false);
+  // the registry key is the pair's base id (`_a`): the elite `_b` record resolves through it (content/index.js kitOf)
+  assert.equal(Object.prototype.hasOwnProperty.call(KITS, B), false);
+});
+
+test('TAC-X 给自己的小奖杯 is the elite’s active default: maxHp +150 / atk +20 / def +15 and the ×0.85 guard on the 援军 an enemy blocks (live)', () => {
+  const b = rec(true), a = rec(false);
+  assert.deepEqual([a.status.equipLevel, a.module.id, a.module.active, a.modules], [0, TX, false, undefined]);
+  assert.deepEqual([b.status.equipLevel, b.module.id, b.module.active, b.module.type, b.module.level], [1, TX, true, 'TAC-X', 1]);
+  assert.deepEqual(b.modules.map((m) => [m.uniEquipId, m.isDefault, m.level]), [[TX, true, 1]]);
+  assert.deepEqual(b.modules[0].attr, { maxHp: 150, atk: 20, def: 15 });
+  // the guard is a hidden talent (`fromModule`, index −1): damage_scale 0.85 — the kit reads `moduleBb(chess).damage_scale`
+  const hidden = b.talents.find((t) => t.fromModule);
+  assert.deepEqual([hidden.index, hidden.bb], [-1, { damage_scale: 0.85 }]);
+  assert.equal(a.talents.find((t) => t.fromModule), undefined, 'the normal form carries no module talent');
+  // live: an enemy blocked by her 指揮中心 hits it for ×0.85 on the elite, the plain damage on the normal form
+  for (const elite of [[false], [true]]) {
+    const { h, t } = field({ elite: elite[0], skill: 0 });
+    assert.ok(t, `${label(elite)}: the 指挥中心`);
+    const e = h.spawn('enemy_atk', { pos: [10, 5] });
+    e.blockedBy = t; t.blocking = [e];
+    h.run(3);
+    const c = h.hooksOf('damaged').find((x) => x.target === t && x.source === e);
+    assert.ok(c, `${label(elite)}: the enemy hit the 指挥中心`);
+    const guard = rec(elite[0]).talents.find((x) => x.fromModule)?.bb.damage_scale ?? 1;
+    const plain = Math.max(e.s.atk - t.s.def, e.s.atk * 0.05);
+    approx(c.amount, plain * guard, `${label(elite)}: max(atk − def) × ${guard}`);
+    if (!elite[0]) assert.equal(guard, 1, 'the normal form has no guard');
+    done(h);
+  }
 });
 
 test('精准投放 without a placed piece: the 指挥中心 comes on the tactical point (a walkable tile of her range, the enemy path first); her leaving withdraws it for good, her redeploy brings a new one; knocked out it sits in its 战术点形态 for 15 s (off the fight, its tile kept, no 援军) and comes back at full HP', () => {
-  const { h, u, t } = field({ tier: 6, elite: true, mod: TX, skill: 0, base: null });
+  const { h, u, t } = field({ elite: true, skill: 0, base: null });
   assert.ok(t && t.uid == null, 'summoned');
   assert.ok(u.baseRangeKeys.includes(tk(t.tileR, t.tileC)) && h.b.grid.groundPassable(t.tileR, t.tileC), 'a walkable tile of her range');
   assert.ok(h.b.groundPathTiles().has(tk(t.tileR, t.tileC)), 'on an enemy ground path');
   done(h);
   // the placed piece: knock-out ⇒ 战术点形态
-  const r = field({ tier: 5, elite: true, mod: TX, skill: 1, others: [{ uid: 3, chessId: YAK, row: 11, col: 6 }] });
-  const refresh = tokVariant(5, true).talents.find((x) => x.bb.interval != null).bb.interval;
+  const r = field({ elite: true, skill: 1, others: [{ uid: 3, chessId: YAK, row: 11, col: 6 }] });
+  const refresh = tokVariant(true).talents.find((x) => x.bb.interval != null).bb.interval;
   assert.equal(refresh, 15);
   r.h.b.kill(r.t, null);
   assert.ok(!r.t.alive && !r.t.removed && r.t.mem.closurTac, 'in its 战术点形态');
@@ -135,11 +171,11 @@ test('精准投放 without a placed piece: the 指挥中心 comes on the tactica
 });
 
 test('Trait: her damage on an enemy blocked by her 援军 — the 指挥中心 or an ally of its range — ×atk_scale (1.5); ×1 vs an enemy blocked by an ally outside its range', () => {
-  for (const f of [[5, false, null], [6, true, TX]]) {
-    const [tier, elite, mod] = f;
+  for (const f of FORMS_ALL) {
+    const [elite] = f;
     // S1 carried: the 指挥中心's x-5 around (10,6) holds (11,6) (角峰), not (11,7) (德克萨斯)
-    const { h, u, t } = field({ tier, elite, mod, skill: 0, others: [{ uid: 3, chessId: YAK, row: 11, col: 6 }, { uid: 4, chessId: TEXAS, row: 11, col: 7 }] });
-    const scale = formOf(tier, elite).trait.bb.atk_scale;
+    const { h, u, t } = field({ elite, skill: 0, others: [{ uid: 3, chessId: YAK, row: 11, col: 6 }, { uid: 4, chessId: TEXAS, row: 11, col: 7 }] });
+    const scale = rec(elite).trait.bb.atk_scale;
     assert.equal(scale, 1.5);
     for (const [pos, blocker, mul] of [[[10, 6], t, scale], [[11, 6], h.unit(3), scale], [[11, 7], h.unit(4), 1]]) {
       const e = h.spawn('enemy_dummy', { pos });
@@ -154,12 +190,12 @@ test('Trait: her damage on an enemy blocked by her 援军 — the 指挥中心 o
 });
 
 test('S1 递归策略 (AUTO, at full SP): every 援军 — the 指挥中心 and the allies of its x-5, not one outside, not a 孤立 one — gets one 护盾 layer (不叠加); 3 DP, then 4, 5 … up to 6 (normal) / 7 (elite), one at a time every 8 / n s from half that; the count restarts with a redeploy', () => {
-  for (const f of [[5, false, null], [6, true, TX]]) {
-    const [tier, elite, mod] = f;
-    const sk = skillOf(tier, elite, S1);
+  for (const f of FORMS_ALL) {
+    const [elite] = f;
+    const sk = skillOf(elite, S1);
     assert.deepEqual([sk.duration, sk.bb.cost, sk.bb.cost_per_add, sk.bb.cost_add_max, sk.bb.shield_cnt, sk.initSp], [8, 3, 1, elite ? 7 : 6, 1, 0], label(f));
     const others = [{ uid: 3, chessId: YAK, row: 11, col: 6 }, { uid: 4, chessId: TEXAS, row: 11, col: 7 }, { uid: 5, chessId: PODEGO, row: 9, col: 6 }];
-    const { h, u, t } = field({ tier, elite, mod, skill: 0, others });
+    const { h, u, t } = field({ elite, skill: 0, others });
     h.b.addBuff(h.unit(5), { key: 'test:isolated', flags: { isolated: true } });
     const log = dpLog(h);
     h.b.players[0].dp = 0;
@@ -195,14 +231,14 @@ test('S1 递归策略 (AUTO, at full SP): every 援军 — the 指挥中心 and 
 });
 
 test('S2 模型扩展: +cost DP at once and 15 one per 2 s; ATK +atk, 2 targets; every 援军 (x-4) DEF +def and block +1; the enemies they block are her targets beyond her range; an operator of hers deployed on the 指挥中心\'s range meanwhile gives back ceil(40 % × its cost) — not after a 【移动】, not outside the range', () => {
-  for (const f of [[5, false, null], [6, true, TX]]) {
-    const [tier, elite, mod] = f;
-    const sk = skillOf(tier, elite, S2);
+  for (const f of FORMS_ALL) {
+    const [elite] = f;
+    const sk = skillOf(elite, S2);
     assert.deepEqual([sk.duration, sk.bb.cost, sk.bb.cost_period, sk.bb['closur_s_2[add_cost_period].interval'], sk.bb.atk, sk.bb.def, sk.bb.block_cnt, sk.bb['attack@max_target'], sk.bb.cost_return],
       [30, elite ? 7 : 6, 15, 2, elite ? 0.55 : 0.4, elite ? 0.45 : 0.3, 1, 2, 0.4], label(f));
     // 角峰 (11,7) is in the x-4 of (10,6); 德克萨斯 (12,8) is outside it and outside her 3-3; 波登可 (9,9) far
     const others = [{ uid: 3, chessId: YAK, row: 11, col: 7 }, { uid: 4, chessId: TEXAS, row: 12, col: 8 }, { uid: 5, chessId: PODEGO, row: 12, col: 4 }];
-    const { h, u, t } = field({ tier, elite, mod, skill: 1, others });
+    const { h, u, t } = field({ elite, skill: 1, others });
     const yak = h.unit(3), texas = h.unit(4), podego = h.unit(5);
     const log = dpLog(h);
     h.b.players[0].dp = 0;
@@ -246,7 +282,7 @@ test('S2 模型扩展: +cost DP at once and 15 one per 2 s; ATK +atk, 2 targets;
   }
   // the enemies her 援军 block are her targets beyond her own range: 角峰 at (11,8) — out of her 3-3 ([1, 4]) — is in the
   // x-4 of a 指挥中心 at (10,7)
-  const { h, u } = field({ tier: 6, elite: true, mod: TX, skill: 1, base: [10, 7], others: [{ uid: 3, chessId: YAK, row: 11, col: 8 }] });
+  const { h, u } = field({ elite: true, skill: 1, base: [10, 7], others: [{ uid: 3, chessId: YAK, row: 11, col: 8 }] });
   const e = h.spawn('enemy_dummy', { pos: [11, 8] });
   h.run(0.5);
   assert.equal(e.blockedBy, h.unit(3));
@@ -258,12 +294,12 @@ test('S2 模型扩展: +cost DP at once and 15 one per 2 s; ATK +atk, 2 targets;
 });
 
 test('S3 Q.E.D.: 18 DP one per 1.66 s; attack interval (1.0 − 0.5 s) / ASPD 1.08 (full potential); hits of attack@atk_scale × ATK with one 迟钝 stack each (4 % / 5 %, ≤ 10 stacks, one 3 s timer); one more target per 9 attacks (≤ 6); her range adds the 指挥中心\'s x-6 and her 援军\'s ranges', () => {
-  for (const f of [[5, false, null], [6, true, TX]]) {
-    const [tier, elite, mod] = f;
-    const sk = skillOf(tier, elite, S3);
+  for (const f of FORMS_ALL) {
+    const [elite] = f;
+    const sk = skillOf(elite, S3);
     assert.deepEqual([sk.duration, sk.bb.cost_period, sk.bb['closur_s_3[add_cost_period].interval'], sk.bb.base_attack_time, sk.bb['attack@atk_scale'], sk.bb['attack@slow_down'], sk.bb['attack@slow_down_time'], sk.bb['attack@max_stack_cnt'], sk.bb['attack@slow_down_max'], sk.bb.attack_trigger_cnt, sk.bb.max_trigger_cnt],
       [30, 18, 1.66, -0.5, elite ? 1.9 : 1.5, elite ? 0.05 : 0.04, 3, 10, elite ? 0.5 : 0.4, 9, 6], label(f));
-    const { h, u, t } = field({ tier, elite, mod, skill: 2 });
+    const { h, u, t } = field({ elite, skill: 2 });
     const log = dpLog(h);
     // eight enemies in her 3-3 (a flyer among them): enough for 1 + 6 targets
     const near = [[9, 4], [9, 5], [9, 6], [9, 7], [11, 4], [11, 5], [11, 6], [11, 7]].map((p, i) => h.spawn(i === 2 ? 'enemy_fly' : 'enemy_dummy', { pos: p }));
@@ -272,7 +308,7 @@ test('S3 Q.E.D.: 18 DP one per 1.66 s; attack interval (1.0 − 0.5 s) / ASPD 1.
     u.skill.gainSp(999);
     assert.ok(h.runUntil(() => u.skill.active, 1));
     const t0 = h.b.time;
-    assert.equal(formOf(tier, elite).stats.aspd, 108, `${label(f)}: ASPD 108 (潜能 攻速 +8)`);
+    assert.equal(rec(elite).stats.aspd, 108, `${label(f)}: ASPD 108 (潜能 攻速 +8)`);
     approx(u.s.interval, 0.5 / 1.08, `${label(f)}: interval 0.5 s / 1.08 (ASPD 108)`);
     let attacks = 0;
     const perAttack = [];
@@ -304,7 +340,7 @@ test('S3 Q.E.D.: 18 DP one per 1.66 s; attack interval (1.0 − 0.5 s) / ASPD 1.
     void t;
   }
   // her range adds the 指挥中心's x-6: (10,8) is outside her 3-3 (cols 4–7), inside the x-6 of (10,6) ([0, 2])
-  const { h, u } = field({ tier: 6, elite: true, mod: TX, skill: 2 });
+  const { h, u } = field({ elite: true, skill: 2 });
   const far = h.spawn('enemy_dummy', { pos: [10, 8] });
   h.run(2);
   assert.equal(hitsOn(h, u, far).length, 0, 'out of her range before');
@@ -314,12 +350,13 @@ test('S3 Q.E.D.: 18 DP one per 1.66 s; attack interval (1.0 − 0.5 s) / ASPD 1.
   done(h);
 });
 
-test('T2 极限调度: from the battle start the 【罗德岛】 operators of her player (herself too) ATK +4 % (TAC-X stage 3 +8 %) for the whole battle; others not', () => {
+test('T2 极限调度: from the battle start the 【罗德岛】 operators of her player (herself too) ATK +4 % for the whole battle; others not', () => {
   for (const f of FORMS_ALL) {
-    const [tier, elite, mod] = f;
-    const tb = talentOf(tier, elite, mod, 1).bb;
-    assert.deepEqual(tb, tier === 6 && elite && mod === TX ? { cost: -6, atk: 0.08 } : { cost: -4, atk: 0.04 }, label(f));
-    const { h, u } = field({ tier, elite, mod, skill: 0, others: [{ uid: 3, chessId: PODEGO, row: 12, col: 3 }, { uid: 4, chessId: YAK, row: 11, col: 3 }] });
+    const [elite] = f;
+    const tb = talentOf(elite, 1).bb;
+    // the TAC-X stage 3 +8 % was a module talentChange — without a module it is the data's 0.04
+    assert.deepEqual(tb, { cost: -4, atk: 0.04 }, label(f));
+    const { h, u } = field({ elite, skill: 0, others: [{ uid: 3, chessId: PODEGO, row: 12, col: 3 }, { uid: 4, chessId: YAK, row: 11, col: 3 }] });
     const podego = h.unit(3), yak = h.unit(4);
     assert.equal(podego.def.raw.nationId, 'rhodes');
     for (const a of [u, podego]) assert.equal(a.findBuff(RHODES_KEY)?.mods.atkPct, tb.atk, `${label(f)}: ${a.defId}`);
@@ -328,20 +365,5 @@ test('T2 极限调度: from the battle start the 【罗德岛】 operators of he
     h.run(1);
     assert.equal(podego.findBuff(RHODES_KEY)?.mods.atkPct, tb.atk, `${label(f)}: kept while she is down (携带)`);
     done(h);
-  }
-});
-
-test('TAC-X “给自己的小奖杯”: damage on one of her 援军 from an enemy it blocks ×0.85 (stages 1 and 3); not without the module', () => {
-  for (const f of [[5, false, null], [5, true, null], [5, true, TX], [6, true, TX]]) {
-    const [tier, elite, mod] = f;
-    const { h, u, t } = field({ tier, elite, mod, skill: 0 });
-    const guard = elite && mod === TX ? modOf(tier, TX).talentChanges.find((x) => x.talentIndex === -1).bb.damage_scale : 1;
-    if (elite && mod === TX) assert.equal(guard, 0.85);
-    const e = h.spawn('enemy_atk', { pos: [10, 6] });
-    assert.ok(h.runUntil(() => h.hooksOf('damaged').some((c) => c.source === e && c.target === t), 5), `${label(f)}: hit by the enemy it blocks`);
-    const c = h.hooksOf('damaged').find((x) => x.source === e && x.target === t);
-    approx(c.amount, Math.max(2000 - t.s.def, 100) * guard, `${label(f)}: ×${guard}`);
-    done(h);
-    void u;
   }
 });

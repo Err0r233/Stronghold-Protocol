@@ -563,6 +563,14 @@ export const SUB = Object.freeze({
       return bodyOnTile(target, unit.tileR, unit.tileC) || bodyOnTile(target, fr, fc) ? 1 : (unit.profile.rangedScale ?? 0.8);
     } }),
   musha: P({ noHeal: true, install: installMushaHeal }),
+  // 本源近卫 (克莱门莎, char_4231_clemnt) — 特性 "能够阻挡两个敌人，可以造成元素伤害" (PRTS 克莱门莎 特性; PRTS 分支特性信息
+  // 本源近卫, whose 分支信息 lists no further rule — her page carries no 分支信息 section, unlike 咒愈师's). Equivalent to
+  // the plain 近卫 default: melee, physical, with the block count the data carries (`stats.blockCnt` 2 — a 本源近卫's
+  // 「阻挡两个敌人」) and the branch's permission to deal 元素伤害, which needs no engine flag: element damage / a gauge
+  // fill is the explicit `DamageInfo` type `element` / `elemental` the kit passes itself (kits/ops/op-clemnt.js's 侵蚀
+  // riders and S3's `type: 'elemental'`), exactly as every other 元素 branch does. The trait blackboard is empty
+  // (data/chess.json `trait.bb` = {}).
+  primguard: P({}),
   reaper: P({ noHeal: true, allInRange: true, install: installReaperHeal }),
   sword: P({ hits: 2 }),
   artsfghter: P({ dmgType: 'arts' }),

@@ -54,6 +54,8 @@ function setup(seed = 70) {
     return a;
   };
   const G = (b) => gains[b] || 0;
+  /** Clear the recorded layer gains (a second dispatch in one scenario counts on its own). */
+  const resetGains = () => { for (const k of Object.keys(gains)) delete gains[k]; };
   /** activate bonds through a member-count bonus (独行 is a "downward" bond: never activated here) */
   const activate = (...bonds) => { for (const b of bonds) if (b !== 'soloShip') ps.bondCountBonus[b] = 20; ps.recompute(); };
   const active = (b) => !!(ps.bonds[b] && ps.bonds[b].active);
@@ -63,7 +65,7 @@ function setup(seed = 70) {
   const acquire = (id) => ps.acquireChess(id, { source: 'test' });
   const sell = (p) => assert.deepEqual(m.handle('p_0', { t: 'g.sell', uid: p.uid }), { ok: true });
   const gainsNow = () => Object.fromEntries(Object.entries(gains).filter(([, v]) => v > 0));
-  return { h, m, ps, activate, active, L, G, gainsNow, prepEnd, roundStart, acquire, sell };
+  return { h, m, ps, activate, active, L, G, gainsNow, resetGains, prepEnd, roundStart, acquire, sell };
 }
 const handItems = (ps) => [...ps.hand, ...ps.temp].filter((p) => p && p.kind === 'item').map((p) => p.id);
 const handChess = (ps) => [...ps.hand, ...ps.temp].filter((p) => p && p.kind === 'chess').map((p) => p.id);
@@ -134,7 +136,7 @@ test('SERVER_ADD_BOND 获得时: 烛煌 35 炎/维多利亚 +5 / +10; 录武官 
   const s = setup();
   s.acquire('chess_char_5_03_a');
   s.acquire('chess_char_5_03_b');
-  onlyGains(s, { yanShip: 15, victoriaShip: 15 });
+  onlyGains(s, { yanShip: 15, victoriaShip: 15, elementShip: 15 });
 });
 
 test('SERVER_ADD_MULTIPLE_BOND 录武官 156: 炎 +6 / 奇迹 +3 (精锐 12 / 6), no activation needed', () => {
@@ -330,7 +332,7 @@ test('SERVER_ADD_BOND_METHOD same_bond_diff_lv (薄绿 48, 维娜 53 维多利�
   assert.equal(b.G('miraShip'), new Set(['chess_char_6_07_a', 'chess_char_3_08_b', v1].filter((id) => CH(id).bonds.includes('miraShip')).map((id) => CH(id).tier)).size * 2);
 });
 
-test('SERVER_ADD_BOND_METHOD hand_count (妮芙 56) and same_row (蛇屠箱 70)', () => {
+test('SERVER_ADD_BOND_METHOD hand_count (妮芙 56 / 177) and same_row (蛇屠箱 70)', () => {
   for (const { gid, g, owners } of idsOf('SERVER_PREP_FIN', 'SERVER_ADD_BOND_METHOD').filter((x) => ['hand_count', 'same_row'].includes(x.g.bbStr.add_method))) {
     for (const owner of owners) {
       const s = setup();
@@ -344,9 +346,14 @@ test('SERVER_ADD_BOND_METHOD hand_count (妮芙 56) and same_row (蛇屠箱 70)'
         give(s.m, s.ps, fill[1], 'board', [10, 8]);
         give(s.m, s.ps, fill[2], 'board', [11, 6]);                    // other row
       }
-      s.activate(g.bbStr.bond);
-      s.prepEnd();
-      assert.equal(s.G(g.bbStr.bond), 3 * g.bb.multi, `${gid} ${owner}: 3 × ${g.bb.multi}`);
+      // 妮芙's extended row (garrison_177) lists 迅捷 AND 元素; each bond's gain is asserted on its own id (the gains
+      // reset between the two, so a second prep-end dispatch does not stack onto the first bond's number).
+      for (const b of g.bbStr.bond.split(',')) {
+        s.activate(b);
+        s.resetGains();
+        s.prepEnd();
+        assert.equal(s.G(b), 3 * g.bb.multi, `${gid} ${owner}: 3 × ${g.bb.multi} (${b})`);
+      }
     }
     cover(gid);
   }
@@ -354,9 +361,26 @@ test('SERVER_ADD_BOND_METHOD hand_count (妮芙 56) and same_row (蛇屠箱 70)'
   give(c.m, c.ps, 'chess_char_5_22_b', 'board', [10, 4]);
   give(c.m, c.ps, 'chess_char_1_02_a', 'hand');
   give(c.m, c.ps, 'chess_char_1_03_a', 'hand');
-  c.activate('swiftShip');
+  c.activate('swiftShip', 'elementShip');
   c.prepEnd();
   assert.equal(c.G('swiftShip'), 8, '妮芙 精锐: 2 hand operators × 4');
+  assert.equal(c.G('elementShip'), 8, '妮芙 精锐: the 元素 clause of the same row (2 hand operators × 4, the item does not count)');
+  // 元素 requires activation exactly like 迅捷 (maintainer's ruling of 2026-10-12; the row's text 「使已激活的【迅捷】
+  // 【元素】」 is now the whole rule — server/sim/content/garrisons/meta.js no longer carries a per-bond exception for
+  // her). The same board with nothing activated gains nothing, and with ONLY 迅捷 active the 元素 half stays silent:
+  // that is the assertion the removed `BOND_REQUIRE_OVERRIDE` entry used to contradict.
+  const e = setup();
+  give(e.m, e.ps, 'chess_char_5_22_b', 'board', [10, 4]);
+  give(e.m, e.ps, 'chess_char_1_02_a', 'hand');
+  give(e.m, e.ps, 'chess_char_1_03_a', 'hand');
+  e.prepEnd();
+  onlyGains(e, {}, '妮芙 精锐: neither bond activated → no gain at all');
+  const only = setup();
+  give(only.m, only.ps, 'chess_char_5_22_b', 'board', [10, 4]);
+  give(only.m, only.ps, 'chess_char_1_02_a', 'hand');
+  only.activate('swiftShip');
+  only.prepEnd();
+  onlyGains(only, { swiftShip: 4 }, '妮芙 精锐: 元素 not activated → 迅捷 alone gains');
   const d = setup();
   give(d.m, d.ps, 'chess_char_3_16_a', 'board', [10, 4]);
   give(d.m, d.ps, 'chess_char_1_02_a', 'board', [10, 6]);

@@ -804,8 +804,7 @@ const BY_ITEM = {
   },
   // 家族徽章 (叙拉古): while 隐匿 ATK grows atk_per_sec/s up to +max_atk until the first damage after 隐匿 ends
   //   (or leaving the field); + 叙拉古正装 ⇒ that first hit also deals atk_scale × ATK true damage
-  chess_item_6_11_e(battle, u, rec, S) {
-    const p = bp(rec, 'act2autochess_equip_acarm122_global_buff');
+  chess_item_6_11_e(battle, u, rec, S) {    const p = bp(rec, 'act2autochess_equip_acarm122_global_buff');
     if (!p) return;
     const partner = partnerOf(p);
     const key = S.key('stealth');
@@ -834,6 +833,118 @@ const BY_ITEM = {
       battle.removeBuff(u, key);
     });
     S.on('death', (c) => { if (c.unit === u) st.bonus = 0; });
+  },
+  // “魔王的祭器” (自研 巴别塔, tools/content/custom.mjs BABEL_ITEMS.vessel — the 5 阶 SET item): every heal the carrier
+  // RECEIVES from an ally while “文明的存续” is carried grants a shield of heal_scale × the HP actually restored, with
+  // the shield pool capped at max_hp_scale × the carrier's own max HP. Both numbers are the data's (bb), the partner key
+  // is the official SET mechanism (bbStr.equip_chess_id, suffix-less: either quality satisfies it) — exactly the
+  // 天马之盔 / 天马之枪 pair below.
+  //
+  // "受到友方治疗": the `heal` hook fires once per target (damage.js heal) with `source` = the healer; the engine emits
+  // it BEFORE clamping the amount to the missing HP, so the restore is computed the way the engine does next —
+  // max(0, min(ctx.amount, maxHp − hp)) — and 过量治疗 grants nothing extra. Excluded: `opts.regen` (a 生命回复速度 tick
+  // is not 治疗: damage.js heal header, PRTS 治疗分类 — that is also what keeps this item from feeding itself), a
+  // sourceless tick, and any heal whose source is the carrier itself (self-heals are not 友方治疗).
+  //   The shield goes through the engine's generic `shield` pool (buffs.js aggregateMods sums it, damage.js
+  //   absorbShields spends it and drops the buff at 0), not through the hit-negating `shieldHits` of 护盾无人机: the
+  //   item names a 护盾上限 in HP, not a layer count.
+  //   [ASSUMED] the cap is the POOL's, not one grant's: a later ally heal tops the same shield up again once damage has
+  //   spent part of it (the text names a 护盾上限, not a per-grant clamp). A pool already at the cap adds nothing.
+  chess_item_5_10_e(battle, u, rec, S) {
+    const p = bp(rec, 'act2autochess_equip_acbabel_vessel_global_buff');
+    const partner = partnerOf(p);
+    const sc = p ? num(p.heal_scale) : 0;
+    const capRatio = p ? num(p.max_hp_scale) : 0;
+    if (!partner || !(sc > 0) || !(capRatio > 0)) return;
+    const key = S.key('set');
+    const cap = () => Math.max(0, u.s.maxHp * capRatio);
+    S.on('heal', (c) => {
+      if (c.target !== u || !u.alive || !u.deployed) return;
+      if (!c.source || c.source === u || c.source.side !== 'ally') return;
+      if (c.opts && c.opts.regen) return;
+      if (!(c.amount > 0) || !carries(battle, u, partner)) return;
+      const actual = Math.max(0, Math.min(c.amount, u.s.maxHp - u.hp));   // the engine's own over-heal clamp
+      const gain = actual * sc;
+      if (!(gain > 1e-9)) return;
+      const max = cap();
+      if (!(max > 0)) return;
+      const cur = u.findBuff(key);
+      const have = cur ? num(cur.shield) : 0;
+      const val = Math.min(max, have + gain);
+      if (val <= have + 1e-9) return;
+      if (cur) { cur.shield = val; u.markDirty(); } else battle.addBuff(u, { key, shield: val, visible: true, source: u });
+      fxOn(battle, 'shield', u, 'item:chess_item_5_10_e', rec.id, { n: Math.round(val) });
+    });
+  },
+  // “文明的存续” (自研 巴别塔, tools/content/custom.mjs BABEL_ITEMS.legacy — the 6 阶 SET item): while “魔王的祭器” is
+  // carried, every check_hp of HP the carrier ACTUALLY loses grants one layer (ATK +atk_per_stack, ASPD
+  // +attack_speed_per_stack, at most max_stack_cnt, until the battle ends). The 进阶 (_b) quality adds the global
+  // TRUE-damage amplifier (see trueAmp below).
+  //
+  // The counter is the garrison _takedamage rule, verbatim (server/sim/content/garrisons/battle.js
+  // act1autochess_gar_event_takedamage): the `damaged` hook carries the HP the bar actually lost (after mitigation,
+  // shields and every 伤判 effect), an element `damaged` is a gauge chip and a 流失 (isHpLoss) is no 受到伤害 — and the
+  // `busy` guard drops a `damaged` that our own layer gain caused, so no loop can form.
+  //   [ASSUMED] a threshold crossing is consumed whether or not it lands, and a lethal over-kill counts its full
+  //   instance (the hook exposes no clamped `dealt`; the threshold is 3000 — the garrison handlers' reading).
+  //   The layers are one persistent buff of the CURRENT count (refresh 'replace'), not one buff per layer: it survives
+  //   death / redeploy, matching 持续到战斗结束.
+  chess_item_6_12_e(battle, u, rec, S) {
+    const p = bp(rec, 'act2autochess_equip_acbabel_legacy_ability');
+    const amp = bp(rec, 'act2autochess_equip_acbabel_legacy_global_buff');
+    const partner = partnerOf(p);
+    const need = p ? num(p.check_hp) : 0;
+    const perAtk = p ? num(p.atk_per_stack) : 0;
+    const perAspd = p ? num(p.attack_speed_per_stack) : 0;
+    const cap = p ? Math.max(1, Math.floor(num(p.max_stack_cnt, 1))) : 0;
+    const key = S.key('stacks');
+    const st = { n: 0, acc: 0, busy: false };
+    const apply = () => {
+      if (!(st.n > 0)) return;
+      S.buff(u, { key, mods: { ...directMods({ atk: perAtk * st.n }), ...(perAspd ? { aspd: perAspd * st.n } : {}) },
+        refresh: 'replace', persist: true, allowDead: true });
+    };
+    if (partner && need > 0 && (perAtk > 0 || perAspd > 0)) {
+      S.on('damaged', (c) => {
+        if (st.busy || st.n >= cap) return;
+        if (c.target !== u || !(c.amount > 0) || c.type === 'element' || isHpLoss(c.dmg)) return;
+        if (!carries(battle, u, partner)) return;
+        st.acc += c.amount;
+        if (st.acc < need) return;
+        // one crossing per event, like the garrison handler: a single huge hit is not worth several layers at once here
+        // (the text says 每累计承受3000点伤害, and 至多4层 makes an at-once multi-layer reading unreachable anyway)
+        st.acc -= need;
+        st.n++;
+        st.busy = true;
+        try { apply(); } finally { st.busy = false; }
+      });
+    }
+    // ---- the 进阶 global TRUE-damage amplifier ----------------------------------------------------------------
+    // "所有敌方单位受到的真实伤害+150%" (= ×2.5): implemented as ONE player-scoped amplifier in the `hit` hook, the
+    // engine's one mutable pre-mitigation point (damage.js dealDamage emits `hit` once per instance, before dodge and
+    // mitigation; `dmg.mul` is the item-level multiplier 精准狙击镜 / 卡西米尔竞技旗 / 家族徽章 write).
+    //   Scope: `c.source.ownerId === u.ownerId` — only damage THIS PLAYER deals (a teammate's or an enemy's instance is
+    //   untouched, and so is damage the carrier itself takes), `c.target.side === 'enemy'`, and `c.dmg.type === 'true'`.
+    //   Re-entry: none is possible — a `hit` handler that deals damage creates a NEW DamageInfo and re-enters the
+    //   pipeline, it never re-visits this instance (no other handler re-emits `hit` for the same object) — so the
+    //   multiplier is written once, never squared. The amplifier is not re-scaled by the target's 脆弱 either: `mul` is
+    //   folded into the pre-mitigation amount and 真实伤害 takes no dmgTakenMul (damage.js header).
+    //   It is installed only by the 进阶 record (the buff only exists there) and only on the unit that carries it, so a
+    //   normal-quality copy amplifies nothing.
+    if (amp && !S.disposed) {
+      const mul = num(amp.true_damage_mul, 1);
+      if (mul > 1) {
+        S.on('hit', (c) => {
+          const d = c.dmg;
+          if (!d || d.type !== 'true' || d.legacyAmp) return;
+          const src = c.source;
+          if (!src || src.side !== 'ally' || src.ownerId !== u.ownerId) return;
+          if (!c.target || c.target.side !== 'enemy') return;
+          d.legacyAmp = true;
+          d.mul = num(d.mul, 1) * mul;
+        });
+      }
+    }
   },
 };
 

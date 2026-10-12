@@ -359,6 +359,38 @@ test('缇缇 125 + S2 封护 (GitHub #162): every 0.25 s sleep pulse of the ward
 
 // PRTS 卫戍协议：盟约 下半, 3月27日更新#2: 「[Ⅳ阶]华法琳：赋予的特质的叠层上限从 初始12/精锐24 降低至 初始7/精锐14」 — the
 // data's 7 / 14 (GitHub #175; from PR #192 by @kukiC)
+test('dealdamage 逻各斯 169 / 阿斯卡纶 166 (自研 巴别塔): every check_damage of ACTUAL damage dealt to an enemy, per-id caps', () => {
+  // the 「伤害输出」axis of docs/research/15-babel-bond.md §2 — the output mirror of _takedamage. One handler
+  // (act1autochess_gar_event_dealdamage) for both operators, so the semantic cases live in
+  // test/content/babel_traits.test.js; here the two ids are exercised through the generic per-id path and covered.
+  for (const gid of idsOfKey('act1autochess_gar_event_dealdamage')) {
+    const g = GR(gid);
+    const sc = scenario(gid);
+    const h = battle({ units: [{ id: 'op', g: [gid], row: 10, col: 4, bonds: sc.unitBonds }], bonds: sc.bonds, enemies: [{ key: 'e_dummy', pos: [9, 9] }], edefs: {} });
+    const u = h.unit('op'), e = h.enemies()[0];
+    const every = Math.max(1, num(g.bb.check_damage, 1)), per = num(g.bb.bond_add_count);
+    for (let k = 1; k <= 12; k++) {
+      h.b.dealDamage(u, e, { amount: every, type: 'true', canDodge: false });
+      expectAll(h, sc.targets, Math.min(k * per, capOf(gid)), `${gid} after ${k} thresholds`);
+    }
+    cover(gid);
+  }
+  // literal numbers (normal / elite)
+  const one = (gid, n) => {
+    const sc = scenario(gid);
+    const h = battle({ units: [{ id: 'op', g: [gid], row: 10, col: 4 }], bonds: sc.bonds, enemies: [{ key: 'e_dummy', pos: [9, 9] }] });
+    const every = num(GR(gid).bb.check_damage);
+    for (let i = 0; i < n; i++) h.b.dealDamage(h.unit('op'), h.enemies()[0], { amount: every, type: 'true', canDodge: false });
+    return gains(h);
+  };
+  assert.deepEqual(one('garrison_166_a', 1), { babelShip: 2, raidShip: 2 }, '阿斯卡纶 +2 per 3000');
+  assert.deepEqual(one('garrison_166_b', 1), { babelShip: 4, raidShip: 4 }, '精锐 +4');
+  assert.deepEqual(one('garrison_166_a', 9), { babelShip: 6, raidShip: 6 }, '阿斯卡纶 cap 6');
+  assert.deepEqual(one('garrison_169_a', 1), { babelShip: 6, arcaneShip: 6 }, '逻各斯 +6 per 8000');
+  assert.deepEqual(one('garrison_169_b', 1), { babelShip: 8, arcaneShip: 8 }, '精锐 +8');
+  assert.deepEqual(one('garrison_169_a', 9), { babelShip: 24, arcaneShip: 24 }, '逻各斯 cap 24');
+});
+
 test('ADD_BOND 华法琳 72: the front operator gets garrison_95 (own active bonds +1 / +2), capped at the data\'s 7 / 14 (GitHub #175)', () => {
   for (const [gid, per, cap] of [['garrison_72_a', 1, 7], ['garrison_72_b', 2, 14]]) {
     const give = GR(gid).bbStr.give_garrison_id;
@@ -557,7 +589,7 @@ test('GAIN_BUFF (哈洛德 / 锡人 / 迷迭香 03, 流星 137) and 古米 08: d
   approx(stat('garrison_08_b').spRecovery, 1.3);
 });
 
-test('attrByBond (26 ids): floor(Σ layers of the listed ACTIVE bonds / divide_num) × per-step values; live recompute', () => {
+test('attrByBond (26 ids): a fixed `base_*` half + floor(Σ layers of the listed ACTIVE bonds / divide_num) × per-step values, judged ONCE PER DEPLOYMENT (§29.20)', () => {
   for (const gid of idsOfKey('act1autochess_gar_eff_attrByBond')) {
     const { bb, bbStr } = GR(gid);
     const list = ids(bbStr.bond_id);
@@ -567,13 +599,15 @@ test('attrByBond (26 ids): floor(Σ layers of the listed ACTIVE bonds / divide_n
     const k = Math.floor((L * list.length) / div);
     const m = h.unit('op').findBuff(`gar:${gid}`).mods;
     const want = {};
-    // "每叠加N层…+X%" is 直接乘算: the additive percentage bucket (support directMods)
-    if (bb.atk) want.atkPct = bb.atk * k;
-    if (bb.max_hp) want.hpPct = bb.max_hp * k;
-    if (bb.def) want.defPct = bb.def * k;
-    if (bb.attack_speed) want.aspd = bb.attack_speed * k;
-    if (bb.hp_recovery_per_sec) want.hpRegen = bb.hp_recovery_per_sec * k;
-    if (bb.sp_recovery_per_sec) want.spRecoveryFlat = bb.sp_recovery_per_sec * k;
+    // "每叠加N层…+X%" is 直接乘算: the additive percentage bucket (support directMods); a `base_*` twin is the FIXED
+    // half of the same sentence and applies whatever the step count is (0 included)
+    const per = (bare, base) => num(bb[base], 0) + num(bb[bare], 0) * k;
+    if (bb.atk || bb.base_atk) want.atkPct = per('atk', 'base_atk');
+    if (bb.max_hp || bb.base_max_hp) want.hpPct = per('max_hp', 'base_max_hp');
+    if (bb.def || bb.base_def) want.defPct = per('def', 'base_def');
+    if (bb.attack_speed || bb.base_attack_speed) want.aspd = per('attack_speed', 'base_attack_speed');
+    if (bb.hp_recovery_per_sec || bb.base_hp_recovery_per_sec) want.hpRegen = per('hp_recovery_per_sec', 'base_hp_recovery_per_sec');
+    if (bb.sp_recovery_per_sec || bb.base_sp_recovery_per_sec) want.spRecoveryFlat = per('sp_recovery_per_sec', 'base_sp_recovery_per_sec');
     assert.deepEqual(Object.keys(m).sort(), Object.keys(want).sort(), gid);
     for (const [key, v] of Object.entries(want)) approx(m[key], v, `${gid} ${key}`);
     cover(gid);
@@ -589,10 +623,61 @@ test('attrByBond (26 ids): floor(Σ layers of the listed ACTIVE bonds / divide_n
   assert.equal(h.unit('yx').findBuff('gar:garrison_16_a').mods.aspd, 2, '隐现: 10 / 5 × 1');
   assert.equal(h.unit('yx2').findBuff('gar:garrison_16_b').mods.aspd, 4);
   assert.deepEqual(h.unit('sk').findBuff('gar:garrison_84_b').mods, { hpRegen: 200, spRecoveryFlat: 0.6 }, '浊心斯卡蒂: 2 steps × (100 HP/s, 0.3 SP/s)');
+  // 水月 (garrison_07_a, 阿戈尔 / 3): the 25 layers above were judged at her initial deployment (25 / 3 = 8 × 1 %)
+  const mz = h.unit('mz');
+  // a layer gain while she stands on the field does NOT refresh it (官方「※仅在每次部署时判定盟约层数」, §29.20): 27 layers
+  // would be 9 steps, and the deployed 特质 stays at the 8 steps of the deployment
   h.b.addLayers('p1', 'egirShip', 2, 'test');
   h.step(2);
-  approx(h.unit('mz').s.atk, 500 * 1.09, 'recomputed after a layer gain');
+  approx(mz.s.atk, 500 * 1.08, 'a layer gain while deployed leaves the 特质 untouched');
+  approx(h.unit('rs').s.atk, 500 * (1 + 0.02 * 13), '迷迭香 too: the same judgement, the same 13 steps');
+  // …every (re)deployment judges the layers of that instant AGAIN: 27 / 3 = 9 → +9 %
+  h.b.retreat(mz, { reason: 'test' });
+  h.b.redeploy(mz, { free: true });
+  h.step(1);
+  approx(mz.s.atk, 500 * 1.09, 'the redeployment judges the layers of that instant');
+  approx(mz.hp, mz.s.maxHp, 'and a fresh deployment starts at full HP of the judged stats');
   checkInvariants(h.b);
+  // a row WITHOUT any `base_*` keeps the official "no step, no buff" under the new timing too: deployed at 0 steps it
+  // carries nothing, the layer gain does not hand it one, and only the NEXT deployment judges the 5 layers (1 step)
+  const zero = battle({ units: [{ id: 'yy', g: ['garrison_16_a'], row: 10, col: 4 }], bonds: { lateranoShip: B(0) } });
+  const yy = zero.unit('yy');
+  assert.equal(yy.findBuff('gar:garrison_16_a'), null, '隐现 at 0 steps: no buff at all');
+  zero.b.addLayers('p1', 'lateranoShip', 5, 'test');
+  zero.step(2);
+  assert.equal(yy.findBuff('gar:garrison_16_a'), null, 'and none while the unit stands there');
+  zero.b.retreat(yy, { reason: 'test' });
+  zero.b.redeploy(yy, { free: true });
+  zero.step(1);
+  assert.equal(yy.findBuff('gar:garrison_16_a').mods.aspd, 1, 'the redeployment judges 5 / 5 = 1 step');
+  // a unit that has NOT deployed carries no buff at all (部署才判定): even the fixed `base_*` half waits for a deployment
+  const pre = makeBattle({
+    seed: 3, defs: { chess: { wd: rec('wd', ['garrison_170_a']) }, enemies: { e_dummy: dummy() } },
+    units: [{ chessId: 'wd', row: 10, col: 4 }], bonds: { babelShip: B(9) }, autoFinish: false, timeLimit: 400,
+  });
+  const wd = pre.unit('wd');
+  assert.equal(wd.deployed, false, 'not deployed yet');
+  assert.equal(wd.findBuff('gar:garrison_170_a'), null, 'no 特质 buff before the deployment');
+  assert.equal(wd.s.atk, 500, 'and not even the fixed +20 % half is on');
+  pre.step(1);
+  const pm = pre.unit('wd').findBuff('gar:garrison_170_a').mods;
+  approx(pm.atkPct, 0.2 + 0.01 * 3, 'deployed: 9 / 3 = 3 steps on top of the fixed half');
+  approx(pm.hpPct, 0.2 + 0.01 * 3, '…the same for the HP half');
+  approx(pre.unit('wd').hp, 2000 * (1 + 0.2 + 0.01 * 3), 'and the deployment itself happens at full HP of the judged stats');
+  // the fiat one-line 作战能力 (维什戴尔 170): the fixed half applies ALONE at step 0, the per-step half is added on top
+  for (const [gid, base, per] of [['garrison_170_a', 0.2, 0.01], ['garrison_170_b', 0.4, 0.02]]) {
+    const zero = battle({ units: [{ id: 'wd', g: [gid], row: 10, col: 4 }], bonds: { babelShip: B(0) } });
+    assert.deepEqual(zero.unit('wd').findBuff(`gar:${gid}`).mods, { atkPct: base, hpPct: base }, `${gid}: step 0 = the fixed half`);
+    approx(zero.unit('wd').s.atk, 500 * (1 + base), `${gid}: +${base * 100} % ATK at 0 layers`);
+    approx(zero.unit('wd').s.maxHp, 2000 * (1 + base), `${gid}: +${base * 100} % max HP at 0 layers`);
+    // 9 layers = 3 steps: the per-step half is added to the SAME bucket as the fixed one (one id, one 直接乘算 pool),
+    // never a second +20 / +40 % — and the bond's own 一档 is NOT part of this 特质 (it is the separate bond:babel:l1)
+    const three = battle({ units: [{ id: 'wd', g: [gid], row: 10, col: 4 }], bonds: { babelShip: B(9) } });
+    assert.deepEqual(three.unit('wd').findBuff(`gar:${gid}`).mods, { atkPct: base + 3 * per, hpPct: base + 3 * per }, `${gid}: 9 / 3 = 3 steps`);
+    approx(three.unit('wd').s.atk, 500 * (1 + base + 3 * per), `${gid}: base + fixed + 3 × per-step`);
+    approx(three.unit('wd').s.maxHp, 2000 * (1 + base + 3 * per), `${gid}: max HP the same way`);
+    cover(gid);
+  }
 });
 
 test('respawnTimeByBond 144, attrByBond_add_onstart 115 (玛恩纳, 100 s after each deploy), ab_damageScaleByBond 101 (仇白)', () => {
@@ -716,6 +801,48 @@ test('real data: every owned IN_BATTLE garrison installs without errors on its r
     h.runToEnd(60);
     assert.deepEqual(h.b.errors.filter((e) => /garrison|content:garrisons/.test(JSON.stringify(e))), [], `batch ${i}`);
     checkInvariants(h.b);
+  }
+});
+
+test('自研 巴别塔 承伤 163 / 治疗 164 / 授予-被授予 173→174: the four fiat pairs through their own paths', () => {
+  // The semantic cases of the two counters live in test/content/babel_traits.test.js (per-target heal clamps, 过量治疗,
+  // 流失 / element exclusions, 魔王-style re-entry…). Here every id is exercised once through the production path so the
+  // coverage list below sees them, with its own data numbers.
+  for (const [gid, per, cap] of [['garrison_163_a', 1, 8], ['garrison_163_b', 2, 16]]) {
+    const g = GR(gid), sc = scenario(gid);
+    assert.equal(g.effectKey, 'act1autochess_gar_event_takedamage');
+    const h = battle({ units: [{ id: 'op', g: [gid], row: 10, col: 4, stats: { maxHp: 1e6 } }], bonds: sc.bonds });
+    const u = h.unit('op');
+    const need = num(g.bb.check_hp) * Math.ceil(cap / per);
+    h.b.dealDamage(null, u, { amount: need, type: 'true' });
+    expectAll(h, sc.targets, cap, `${gid}: the whole per-battle cap`);
+    cover(gid);
+  }
+  for (const [gid, per, cap] of [['garrison_164_a', 2, 10], ['garrison_164_b', 4, 20]]) {
+    const g = GR(gid);
+    assert.equal(g.effectKey, 'act1autochess_gar_event_healamount');
+    const h = battle({
+      units: [{ id: 'amiya', g: [gid], row: 10, col: 4, stats: { maxHp: 1000 } }, { id: 'mate', row: 10, col: 6, stats: { maxHp: 1e6 } }],
+      bonds: Object.fromEntries(ids(g.bbStr.bond_id).map((b) => [b, B(0)])),
+    });
+    const a = h.unit('amiya'), m = h.unit('mate');
+    for (let i = 0; i < Math.ceil(cap / per); i++) { m.hp = 1; h.b.heal(a, m, num(g.bb.check_hp)); }
+    expectAll(h, ids(g.bbStr.bond_id), cap, `${gid}: the whole per-battle cap`);
+    cover(gid);
+  }
+  // 华法琳's OFFICIAL pair: the granting half (72) hands the granted half (95) to the operator in front, each skill it
+  // casts paying +1 / +2 to its own activated bonds, capped at the data's 7 / 14 (the 4 / 8 cap override was withdrawn,
+  // maintainer 2026-10-13 — the pair this test used to drive, garrison_173/174, is gone)
+  for (const [gid, give, cap] of [['garrison_72_a', 'garrison_95_a', 7], ['garrison_72_b', 'garrison_95_b', 14]]) {
+    const h = battle({
+      units: [{ id: 'warfarin', g: [gid], row: 10, col: 4 }, { id: 'front', row: 10, col: 5, bonds: ['yanShip', 'kjeragShip'] }],
+      bonds: { yanShip: B(0), kjeragShip: B(0) },
+    });
+    const f = h.unit('front');
+    assert.ok(h.eventsOf('fx').some((e) => e[1] === 'garrisonGrant' && e[4].id === f.id && e[4].key === give), `${gid} grants ${give}`);
+    for (let i = 0; i < 12; i++) skill(h, f);
+    assert.deepEqual(gains(h), { yanShip: cap, kjeragShip: cap }, `${give}: capped at ${cap}`);
+    cover(gid); cover(give);
   }
 });
 

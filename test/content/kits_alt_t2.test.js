@@ -52,7 +52,9 @@ const plain = (id, o = {}) => chessRec({ id, skill: null, ...o });
 
 test('kit coverage: every selectable skill of every visible tier-2 chess is hand-authored (normal + elite)', () => {
   const rep = kitCoverage({ tier: 2 });
-  assert.equal(rep.summary.chess, 17);
+  // 18 = the official 17 visible T2 records + the 巴别塔 layer's 阿米娅·医疗 (chess_char_2_05_babel_a,
+  // docs/research/15-babel-bond.md §1, data/chess.json `tier === 2 && visible`)
+  assert.equal(rep.summary.chess, 18);
   assert.equal(rep.summary.covered, rep.summary.skills, JSON.stringify(rep.chess.filter((r) => r.skills.some((s) => !s.covered)).map((r) => r.name)));
   for (const r of rep.chess) {
     for (const s of r.skills.filter((x) => !x.isDefault)) {
@@ -757,7 +759,11 @@ test('every tier-2 loadout (skill × module, normal & elite) fights 30 s with it
           });
           const u = h.unit(id);
           assert.equal(u.skill.id, s.skillId);
-          assert.equal(u.kit.skillSource ?? 'kit', s.isDefault ? 'kit' : 'skills', `${id} ${s.skillId}`);
+          // every skill is hand-authored — `kit` (the kit's single default spec) or `skills` (a per-skill entry, which is
+          // what 阿米娅·医疗's 巴别塔 form uses for skchr_amiya3_1). A TANK / 秘术师 AUTOs like 送葬人 S2 legitimately
+          // carry no source field: the generic module resolves them.
+          const asrc = u.kit.skillSource;
+          assert.ok(asrc == null || ['kit', 'skills'].includes(asrc), `${id} ${s.skillId}: ${asrc}`);
           h.run(30);
           assert.equal(h.b.errors.length, 0, `${id} S${s.index + 1} module ${moduleId}: ${JSON.stringify(h.b.errors[0])}`);
           checkInvariants(h.b);

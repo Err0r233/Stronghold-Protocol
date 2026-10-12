@@ -22,7 +22,7 @@ const GRANTS = Object.values(DATA.items).filter((r) => r.giveBondId).map((r) => 
 const outsider = (bond) => Object.values(DATA.chess).find((c) => c.visible && !c.isGolden && c.tier <= 2 && !c.bonds.includes(bond) && !c.bonds.includes('maniShip')).chessId;
 const members = (bond) => Object.values(DATA.chess).filter((c) => c.visible && !c.isGolden && c.bonds.includes(bond) && !c.bonds.includes('maniShip')).map((c) => c.chessId).sort();
 
-/** PREP R1 of a real match (all 23 bonds: 绝境), the player's pieces cleared. */
+/** PREP R1 of a real match (all 24 bonds: 绝境 lists every bond of the mode, the 自研 巴别塔 included), the player's pieces cleared. */
 function prep({ mode = 'solo', humans = 1, fake = false, seed = 21 } = {}) {
   const h = makeMatch({ mode, difficulty: 'HARD', humans, seed, fake }).start();
   h.toPrep(1);
@@ -72,10 +72,12 @@ test('缪尔赛思 hands out 变形同构体 on purchase (garrison_76), the boug
   h.invariants();
 });
 
-test('every pairing (18 bond items × normal / golden, both 变形同构体): the wearer counts in prep, in the views, in the battle input and in the real battle', () => {
+test('every pairing (19 bond items × normal / golden, both 变形同构体): the wearer counts in prep, in the views, in the battle input and in the real battle', () => {
+  // 38 = 5 维多利亚 items + 14 other bond items × 2 qualities (normal / golden). The 15th bond is 巴别塔, whose bond item is
+  // 「巴别塔誓言」 (chess_item_2_08_e_a/_b, giveBondId babelShip — tools/content/custom.mjs §6.4).
   const grants = Object.values(DATA.items).filter((r) => r.giveBondId);
-  assert.equal(grants.length, 36);
-  assert.equal(new Set(grants.map((r) => r.giveBondId)).size, 14, '14 bonds have a bond item (the official talent\'s list)');
+  assert.equal(grants.length, 38);
+  assert.equal(new Set(grants.map((r) => r.giveBondId)).size, 15, '15 bonds have a bond item (5 维多利亚 items + 14 others, incl. the 自研 巴别塔)');
   for (const r of grants) {
     const bond = r.giveBondId;
     const iso = r.isGolden ? ISO_B : ISO; // golden bond items with the golden 变形同构体, normal with normal

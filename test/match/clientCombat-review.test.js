@@ -25,7 +25,10 @@ const gd = new GameData(DATA, 'mode_multi_hard');
 test('client result names DIY and stand-in operators from the authoritative lineup, never the client or empty slot (#469)', () => {
   const ordinary = Object.values(DATA.chess).find(c => c.visible && !c.isGolden && gd.standIn(c.chessId));
   const cases = [
-    { chessId: 'chess_char_6_diy1_a', diy: { charId: 'char_4231_clemnt', skillIndex: 2, uniEquipId: null }, expected: '克莱门莎' },
+    // 克莱门莎 was a 自选 operator until the 元素 batch promoted her to a visible 盟约/商店棋 (tools/content/custom.mjs
+    // `clemensa`, docs/research/17-element-bond.md §2): the slot record can no longer compose her, so the case uses a
+    // current owned 6★ pick (凯尔希, `backups.diy.ownedPool` + `diy.operators`).
+    { chessId: 'chess_char_6_diy1_a', diy: { charId: 'char_003_kalts', skillIndex: 2, uniEquipId: null }, expected: '凯尔希' },
     { chessId: ordinary.chessId, standIn: true, expected: gd.standIn(ordinary.chessId).name },
   ];
   for (const { expected, ...unit } of cases) {

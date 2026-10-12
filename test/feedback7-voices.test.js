@@ -62,21 +62,40 @@ test('plan: audio.voiceJp is the JP dub (ArknightsAssets2 voice/) of the very sl
   assert.ok(plan({ voiceSlots: null }).audio.voiceJp.char_263_skadi.gacha);
 });
 
-test('data/assets.json: voiceJp gives every voiced operator the JP twin of each Chinese line (192 operators, 2688 files); stand-ins, 盟约·辅助干员 and summons have neither', () => {
+test('data/assets.json: voiceJp gives every voiced operator the JP twin of each Chinese line; stand-ins, 盟约·辅助干员 and summons have neither', () => {
   const m = readJson('data/assets.json');
   const cn = m.audio.voice;
   const jp = m.audio.voiceJp;
   assert.ok(jp && typeof jp === 'object', 'the manifest carries the JP tree');
   assert.deepEqual(Object.keys(jp), Object.keys(cn), 'the same operators');
-  assert.equal(m.stats.voiceJpChars, Object.keys(jp).length);
-  assert.equal(m.stats.voiceChars, Object.keys(cn).length);
-  assert.equal(Object.keys(jp).length, 192);
+  // The operator count is read from the manifest, never frozen here: it is the plan's own output (`tools/fetch-assets.mjs`
+  // stats.voiceChars / voiceJpChars). 0.2.4 grew it 192 → 195 with the 巴别塔 core-bond roster — 暴行 char_230_savage,
+  // 奥达 char_4131_odda and 阿米娅·医疗 char_1037_amiya3, the three operators of docs/research/15-babel-bond.md that
+  // neither the act2 pool of docs/research/07-assets.json nor the 自选 owned pool carries (tools/assets/extra-operators.json);
+  // the operators 0.2.4 only PROMOTED into shop chess (the OPEN-4 five and 珊比) were already voiced through the pool, so
+  // they did not move this number. What guards the roster is not a constant here: tools/fetch-assets.mjs `shrinkGuard`
+  // refuses a manifest that drops entries (test/fetch-assets-shrink.test.js), and test/docs-consistency.test.js checks
+  // that both trees carry every battle slot of every operator.
+  const ops = Object.keys(jp).length;
+  assert.equal(ops, Object.keys(cn).length);
+  assert.equal(m.stats.voiceJpChars, ops);
+  assert.equal(m.stats.voiceChars, ops);
   // the JP tree is the Chinese one with the folder swapped: same slots, same lines in the same order, same file names
   assert.deepEqual(JSON.parse(JSON.stringify(cn).replaceAll('/assets/audio/voice/cn/', '/assets/audio/voice/jp/')), jp);
-  const lines = [];
-  const walk = (x) => { if (typeof x === 'string') lines.push(x); else if (Array.isArray(x)) x.forEach(walk); else if (x && typeof x === 'object') Object.values(x).forEach(walk); };
-  walk(jp);
-  assert.equal(lines.length, 2688);
+  const leaves = (tree) => {
+    const out = [];
+    const walk = (x) => { if (typeof x === 'string') out.push(x); else if (Array.isArray(x)) x.forEach(walk); else if (x && typeof x === 'object') Object.values(x).forEach(walk); };
+    walk(tree);
+    return out;
+  };
+  const lines = leaves(jp);
+  const cnLines = leaves(cn);
+  // one operator carries the whole battle set (audio.mjs VOICE_BATTLE_SLOTS: 12 slots, 14 lines — 选中干员 / 部署 have
+  // two), so the JP total is that count × the operators: the 「192 operators, 2688 files」 this test used to state
+  const perOp = new Set(Object.values(jp).map((o) => leaves(o).length));
+  assert.equal(perOp.size, 1, `the operators' line counts differ (${[...perOp].join(', ')})`);
+  assert.equal(lines.length, cnLines.length, 'the JP tree repeats every line of the Chinese one');
+  assert.equal(lines.length, [...perOp][0] * ops);
   for (const u of lines) assert.match(u, /^\/assets\/audio\/voice\/jp\/char_[^/]+\/cn_\d+\.mp3$/);
   // no voice: the 17 stand-ins of data/backups.json (预备干员 / 原型干员), the mode's 盟约·辅助干员, every summon
   const backups = readJson('data/backups.json');
@@ -86,9 +105,12 @@ test('data/assets.json: voiceJp gives every voiced operator the JP twin of each 
     assert.equal(jp[id], undefined, `${id}: no JP line`);
     assert.equal(cn[id], undefined, `${id}: no line`);
   }
-  // the files themselves, where this checkout has downloaded the art
-  const dir = path.join(ROOT, 'public', 'assets', 'audio', 'voice', 'jp');
-  if (fs.existsSync(dir)) for (const u of lines) assert.ok(fs.statSync(path.join(ROOT, 'public', u)).size > 0, u);
+  // the files themselves, where this checkout has downloaded the art — both dubs: an entry whose file is missing or
+  // empty would be exactly the silent hole this test exists for (the 巴别塔 trio's lines were checked here on 2026-10-12)
+  for (const [lang, list] of [['jp', lines], ['cn', cnLines]]) {
+    const dir = path.join(ROOT, 'public', 'assets', 'audio', 'voice', lang);
+    if (fs.existsSync(dir)) for (const u of list) assert.ok(fs.statSync(path.join(ROOT, 'public', u)).size > 0, u);
+  }
 });
 
 test('settings 语音语言: 中文 by default, 日本語 kept, nothing else; the row is translated in every language pack', () => {

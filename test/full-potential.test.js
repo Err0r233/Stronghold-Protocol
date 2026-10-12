@@ -18,6 +18,7 @@ import { resolveLoadout, loadoutRecord } from '../server/sim/simdata.js';
 import { diyRecordOf } from '../shared/diy.js';
 import { standInRecord } from '../shared/standIn.js';
 import { makeBattle } from './helpers/battleHarness.js';
+import { characters as COMPOSED } from '../tools/content/custom.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DATA = process.env.DATA_DIR || join(ROOT, 'data');
@@ -29,6 +30,19 @@ const tokens = load('tokens');
 const backups = load('backups');
 const raw = (f) => JSON.parse(readFileSync(join(CACHE, 'excel', `${f}.json`), 'utf8'));
 const talent = (rec, name) => rec.talents.find((t) => t.name === name);
+/**
+ * Whether the official table carries `charId`'s row, i.e. whether the record may be re-derived from it. 阿米娅·医疗
+ * (`char_1037_amiya3`, the 巴别塔 T2 pair chess_char_2_05_babel_a/_b) is the one record the official zh_CN
+ * character_table does not carry: a 「升变」 form tools/content/custom.mjs assembles by hand — its `characters` rows are
+ * add-if-absent, and its probe reads 1382 rows with no such id (the same count the cache has). Her numbers come from
+ * PRTS, so they cannot be re-derived here; every OTHER record missing from the table is still a failure, which is the
+ * assert below. This is a provenance rule, not a relaxation: no record is skipped unless custom.mjs itself made it up.
+ */
+const inTable = (CT, charId) => {
+  if (CT[charId]) return true;
+  assert.ok(Object.hasOwn(COMPOSED, charId), `${charId}: no character_table row and not a hand-assembled record (tools/content/custom.mjs characters)`);
+  return false;
+};
 
 test('刺玫 at full potential: ATK 435 / cost 15 (the tournament video), 再部署 66 s, 土壤基肥改良 at its 「天赋效果增强」 step', () => {
   const v = chess.chess_char_1_06_a;
@@ -80,20 +94,25 @@ test('every chess, 自选 form and stand-in form: the raw keyframes plus every p
     for (const [k, v] of Object.entries(steps(charId))) exp[k] += v;
     for (const [k, v] of Object.entries(exp)) assert.ok(Math.abs(v - stats[k]) <= 0.5 + 1e-9, `${label}: ${k} ${stats[k]} vs official ${v}`);
   };
-  let n = 0, withSteps = 0;
+  let n = 0, composed = 0, withSteps = 0;
   for (const c of Object.values(chess)) {
     if (c.isDiy || !c.charId) continue;
+    if (!inTable(CT, c.charId)) { composed++; continue; } // the hand-assembled 阿米娅·医疗 pair (see inTable)
     check(c.chessId, c.charId, c.status, c.statsBase ?? c.stats);
     n++;
     if (Object.keys(steps(c.charId)).length) withSteps++;
   }
-  assert.equal(n, 258);
+  // the roster: 286 chess records, the 8 自选 slots carry no charId, so 278 are re-derived — except the two forms of
+  // 阿米娅·医疗 (inTable). 0.2.4 moved the OPEN-4 five and 珊比 out of the 自选 pool into shop chess and added the
+  // 巴别塔 roster, so the fixed roster numbers of 0.2.3 (258 / 259 forms) are 276 + 2 / 238 here.
+  assert.equal(n, 276, 'non-DIY chess re-derived from character_table');
+  assert.equal(composed, 2, 'the 巴别塔 阿米娅·医疗 pair chess_char_2_05_babel_a/_b');
   assert.ok(withSteps >= 220, `chess with potential steps: ${withSteps}`);
   let forms = 0;
   for (const [charId, u] of Object.entries(backups.units)) {
     for (const f of Object.values(u.forms)) { check(`${charId}@${f.status.phase}/${f.status.level}`, charId, f.status, f.stats); forms++; }
   }
-  assert.equal(forms, 259);
+  assert.equal(forms, 238, 'the forms of the 82 units of data/backups.json');
   // the 原型干员 stand-ins have no potential ranks: their numbers are the plain keyframes
   for (const id of ['char_600_cpione', 'char_602_cdfend', 'char_608_acpion', 'char_617_sharp2']) assert.equal((CT[id].potentialRanks || []).length, 0, id);
 });
@@ -109,6 +128,7 @@ test('talent candidates: every chess talent is the last one unlocked at its stat
   let potentialTalents = 0;
   for (const c of Object.values(chess)) {
     if (c.isDiy || !c.charId) continue;
+    if (!inTable(CT, c.charId)) continue; // the hand-assembled 阿米娅·医疗 pair (see inTable)
     const base = c.talentsBase ?? c.talents;
     (CT[c.charId].talents || []).forEach((t, index) => {
       const cands = (t.candidates || []).filter((x) => ok(x, c.status.phase, c.status.level));

@@ -71,7 +71,11 @@ function diyMatch(extra = {}) {
     { seat: 1, playerId: 'p_1', name: 'P1', isBot: false, connected: true, diy: { [T5A]: { charId: SIEGE, skillIndex: 0, uniEquipId: null } } },
     { seat: 2, playerId: 'ai_0', name: 'AI0', isBot: true, connected: true, diy: PICKS },
   ];
-  return makeMatch({ mode: 'coop', seats, seed: 11, ...extra });
+  // seed 1: a seed whose per-match ban draw leaves 维多利亚 (推进之王's only bond) and 元素 unbanned, so every pick of
+  // `PICKS` keeps its stock (the other test below draws its own seed and checks the banned case). The seed moved from 11
+  // when the 元素 bond joined the ban draw — it is one more weight-10 add-on candidate, so the sampled set shifted
+  // (docs/research/17-element-bond.md §4).
+  return makeMatch({ mode: 'coop', seats, seed: 1, ...extra });
 }
 /** Gain a chess the way the shop does (acquireChess: the player's copy accounting, merges). */
 const gain = (ps, id) => ps.acquireChess(id, { source: 'buy' });

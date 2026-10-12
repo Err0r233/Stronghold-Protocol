@@ -96,9 +96,11 @@ test('战术决策 generated (co-op 绝境 / 终极 R11): six ally cards, each d
   }
 });
 
-test('战术决策 seeded (co-op 绝境 R11, seed 30): 补给 twice — two cards with their own index and the same face', () => {
+test('战术决策 seeded (co-op 绝境 R11, seed 41): 补给 twice — two cards with their own index and the same face', () => {
+  // The pool grew by one ally card (凯尔希的盟誓, tools/content/custom.mjs): a weighted draw's stream shifts, so the seed
+  // that reproduces the official match-7 composition (补给 ×2) is re-pinned here (it was 30 before the card landed).
   const gd = new GameData(DATA, 'mode_multi_hard');
-  const d = generateDraft(gd, createRng(30), 11, { stageId: 'act1autochess_m02' });
+  const d = generateDraft(gd, createRng(41), 11, { stageId: 'act1autochess_m02' });
   assert.equal(d.family, 'tactic');
   const names = d.cards.map((c) => c.name);
   const at = names.flatMap((n, i) => (n === '补给' ? [i] : []));

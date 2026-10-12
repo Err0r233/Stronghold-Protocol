@@ -229,8 +229,10 @@ describe('§21.26 found on the way — the client-result layer bound reads the l
   const check = (s, gains, opts = { gd }) => { const v = validateClientResult(s, res(gains), opts); return v.ok ? 'ok' : v.reason; };
   const SEED_107_R12 = ['chess_char_1_06_b', 'chess_char_4_14_a', 'chess_char_4_13_a', 'chess_char_3_14_a', 'chess_char_3_11_a', 'chess_char_4_22_a', 'chess_char_3_20_a', 'chess_char_5_14_b'];
 
-  // GitHub #175 (from PR #192 by @kukiC): the handed-out 华法琳 trait counts at the data cap, 7 / 14
-  test('华法琳\'s handed-out trait allows its data cap of 7 / 14 (GitHub #175)', () => {
+  // GitHub #175 (from PR #192 by @kukiC): the handed-out 华法琳 trait counts at the data cap. Her 特质 is her own
+  // official row again (`garrison_72_a/_b` → `garrison_95_a/_b`, caps 7 / 14): the 巴别塔 layer's 4 / 8 override was
+  // withdrawn on 2026-10-13 (`chessGarrisons` is empty, docs/DATA.md §19.8).
+  test('华法琳\'s handed-out trait allows its data cap of 7 / 14 (GitHub #175; the official row)', () => {
     for (const [id, cap] of [['chess_char_4_26_a', 7], ['chess_char_4_26_b', 14]]) {
       const s = spec(3, [id, 'chess_char_1_10_a']); // 华法琳 + 古米
       // a handed-out trait is counted once per operator of the player (2 here), on top of the flat 60 + 4·round

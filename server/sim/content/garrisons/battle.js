@@ -9,6 +9,10 @@
 //                       its data cap like a native one: 华法琳's garrison_95 stops at 7 / 14 layers per battle (PRTS 下半
 //                       3月27日更新#2: 「从 初始12/精锐24 降低至 初始7/精锐14」; GitHub #175, PR #192 by @kukiC).
 //   layer events        act1autochess_gar_event_useskill (skillStart) · _selfkillenemy (kill, every check_cnt) ·
+//                       _takedamage (damaged: every check_hp of HP actually lost by the holder) ·
+//                       _healamount (heal: every check_hp of HP actually restored by the holder, 过量治疗 excluded) ·
+//                       _dealdamage (damaged: every check_damage of HP the holder actually took off an enemy — the
+//                       output mirror of _takedamage; 逻各斯 169 / 阿斯卡纶 166) ·
 //                       _selfdead (death 'killed'; texts with 替身 also on every substitute ⇄ body swap, read from the
 //                       dollkeeper flag unit.trait.doll) · _consume_ammo (ammoUsed; range_id 0-1 self, 1-1 front tile,
 //                       x-5 self + 4 adjacent, pooled counter) · _enemy_abflag_inrange (an enemy in range ENTERS
@@ -29,8 +33,26 @@
 //                       attributes, so atkMul / hpMul), attr_common_global_buff (spRecoveryFlat; "+X%" ATK / HP would be
 //                       直接乘算), attrByBond ("每叠加N层…+X%": 直接乘算, support directMods),
 //                       respawnTimeByBond, attrByBond_add_onstart, ab_damageScaleByBond — layer readers use
-//                       floor(Σ layers of the listed ACTIVE bonds / divide_num) and are recomputed after every layer
-//                       gain (research 02 §5 [ASSUMED] only active bonds count).
+//                       floor(Σ layers of the listed ACTIVE bonds / divide_num) (research 02 §5 [ASSUMED] only active
+//                       bonds count). attrByBond judges that count ONCE PER DEPLOYMENT and replaces its passive buff
+//                       then (official note "（※仅在每次部署时判定盟约层数）", §29.20): the layers of a battle never
+//                       refresh an already deployed unit's buff, every later (re)deployment judges them again, and a
+//                       unit that never deploys carries none. The other three readers keep their own timing: they are
+//                       re-read after every layer gain (respawnTimeByBond is then read at a knock-out,
+//                       attrByBond_add_onstart refreshes its "部署后100秒内" window, ab_damageScaleByBond is read at
+//                       each hit) — no official text marks those per-deployment.
+//                       attrByBond keys: the per-step values are the BARE keys (`atk`, `max_hp`, `def`,
+//                       `attack_speed`, `hp_recovery_per_sec`, `sp_recovery_per_sec`) × that step count, and the
+//                       OPTIONAL `base_*` twin of each is a FIXED bonus applied once whatever the step count
+//                       (`base_atk` 0.4 = +40%, `base_atk` + `atk` 0.02 × k = the one-line "攻击力和生命值+40%；
+//                       【X】每叠加3层…+2%"). Both are FRACTIONS and both are 直接乘算 (additive percentage buckets) —
+//                       nothing here is a multiplier. The official GAIN_BUFF family (garrison_03 "攻击力和生命值+20%",
+//                       bb `atk: 1.2`) reaches the same display text through `char_attribute_mul`, where 1.2 IS a
+//                       multiplier: same meaning, different maths, never a key of this reader. A row that carries the
+//                       fixed part is applied from step 0 on (the fixed half does not depend on layers); a row without
+//                       any `base_*` keeps the historical "no step, no buff" behaviour, so the official texts are
+//                       untouched. Rows whose fixed half lives on a SEPARATE row (the official 03 / 137 pair of
+//                       迷迭香) are unaffected by this timing either way — that row is an INSTALLER, not a reader.
 //   hit modifiers       act1autochess_gar_eff_attack_enemy (dmg.amount × atk vs check_tag enemies),
 //                       ab_damageScaleByBond (bound / sluggish targets), _chaos (弱点伤害, research 04 glossary:
 //                       phys/arts → whichever deals MORE after the engine's mitigation incl. the attacker's DEF/RES
@@ -41,7 +63,7 @@
 // multipliers). install() registers nothing when no operator carries an IN_BATTLE garrison.
 
 import * as S from '../support/index.js';
-import { mitigate } from '../../damage.js';
+import { mitigate, isHpLoss } from '../../damage.js';
 import { frontOf } from '../../dir.js';
 
 const ids = (s) => String(s ?? '').split(',').map((x) => x.trim()).filter(Boolean);
@@ -263,8 +285,139 @@ const INSTALLERS = {
     });
   },
 
-  act1autochess_gar_event_selfdead(battle, list) {
+  /**
+   * 奥达 (自研 巴别塔 T1, tools/content/custom.mjs garrison_163_a/_b — the maintainer's 「承伤 + 治疗」axis of
+   * 2026-10-12): `<战斗中>本干员每累计承受1200点伤害，使已激活的【巴别塔】层数+1 / +2（每场战斗至多8 / 16层）`.
+   *
+   * Hook `damaged` — the engine's one "what this instance took off the HP bar" event. It fires at the END of
+   * applyHpLoss with `amount` = the value the HP bar was actually reduced by (after mitigation, shields and every
+   * 伤判 handler), which is why it is preferred over `hpDamage`: that one fires one step earlier (a later 伤判 handler
+   * may still lower `amount`) and never at all for 流失. The two repo-wide "受到伤害" exclusions apply (damage.js
+   * isHpLoss; 法图娜 / 伪装服 / 乌尔比安 / 澄闪 …): `type === 'element'` is a gauge chip, not HP loss (applyElement
+   * emits `damaged` with the gauge amount), and a 流失 is no 伤害. Only the holder's own damage counts
+   * (ctx.target === the instance's unit).
+   *   [ASSUMED] a lethal over-kill counts its full instance: the hook exposes no clamped `dealt` (the engine's own
+   *   return value), and the threshold is 1200 — far above any rounding this could matter for.
+   *   [ASSUMED] a threshold crossing is consumed whether or not it lands: an inactive bond / a reached cap takes the
+   *   crossing and adds nothing (exactly what _selfkillenemy does with its kills — "每累计…使…+N" names no queue).
+   * Amounts and the per-battle cap are the data's (bb.check_hp, bb.bond_add_count, bb.max_add_count_per_battle) and the
+   * gain goes through fireGain(), i.e. the same bond_by_id / by_count / per-(instance, bond) cap path as _selfkillenemy.
+   * Re-entry: adding layers may run other content (魔王's +extra is a `layerGain` handler); `busy` drops a `damaged`
+   * that such a gain caused on the same holder, so no loop can form (the same guard chess_char_3_18-vulpis.js uses).
+   */
+  act1autochess_gar_event_takedamage(battle, list) {
     const m = byUnit(list);
+    battle.on('damaged', (c) => {
+      if (!(c.amount > 0) || c.type === 'element' || isHpLoss(c.dmg)) return;
+      const arr = c.target ? m.get(c.target) : null;
+      if (!arr) return;
+      for (let i = 0; i < arr.length; i++) {
+        const it = arr[i];
+        if (it.busy) continue;
+        const need = S.num(it.bb.check_hp, 0);
+        if (!(need > 0)) continue;
+        it.acc = (it.acc ?? 0) + c.amount;
+        if (it.acc < need) continue;
+        it.busy = true;
+        try {
+          while (it.acc >= need) { it.acc -= need; fireGain(battle, it); }
+        } finally { it.busy = false; }
+      }
+    });
+  },
+
+  /**
+   * 阿米娅·医疗 (自研 巴别塔 T2, tools/content/custom.mjs garrison_164_a/_b):
+   * `<战斗中>每累计实际治疗友方干员3000点生命，使已激活的【巴别塔】【奥术】层数各+2 / +4（每场战斗至多10 / 20层）`.
+   *
+   * Hook `heal`, registered with a LOW priority (−500): the engine emits it BEFORE the amount is clamped to the
+   * missing HP (damage.js heal), and a handler may still change `ctx.amount`, so we wait for every default-priority
+   * healing modifier and then compute the actual restore exactly as the engine does next —
+   * `max(0, min(ctx.amount, maxHp − hp))`. That is what makes 过量治疗 not count (the maintainer's explicit rule).
+   * Excluded, as everywhere else:
+   * `opts.regen` — a 生命回复速度 tick is not 治疗 at all (damage.js heal header, PRTS 治疗分类) — and targets that are
+   * not 友方干员 (side 'ally' && kind 'op', the repo's reading of 干员: 缇缇 125 / 送葬人 38 do the same). Her own
+   * heals count, of self included (`opts.self` is NOT skipped); heals BY anyone else never do (source === the holder).
+   *   [ASSUMED] one `heal` event = one count: the engine's heal() heals one target, so a multi-target heal is one
+   *   event per target and each target's own actual restore is added once — no per-target duplication.
+   *   [ASSUMED] a threshold crossing is consumed whether or not it lands (as in _takedamage).
+   * Re-entry: `busy` drops a heal that a layer gain caused while we were adding layers (see _takedamage).
+   */
+  act1autochess_gar_event_healamount(battle, list) {
+    battle.on('heal', (c) => {
+      const src = c.source, t = c.target;
+      if (!src || !t || (c.opts && c.opts.regen) || !(c.amount > 0)) return;
+      if (t.side !== 'ally' || t.kind !== 'op') return;
+      for (let i = 0; i < list.length; i++) {
+        const it = list[i];
+        if (it.unit !== src || it.busy) continue;
+        const need = S.num(it.bb.check_hp, 0);
+        if (!(need > 0)) continue;
+        const actual = Math.max(0, Math.min(c.amount, t.s.maxHp - t.hp)); // the engine's own over-heal clamp
+        if (!(actual > 0)) continue;
+        it.acc = (it.acc ?? 0) + actual;
+        if (it.acc < need) continue;
+        it.busy = true;
+        try {
+          while (it.acc >= need) { it.acc -= need; fireGain(battle, it); }
+        } finally { it.busy = false; }
+      }
+    }, { priority: -500 });
+  },
+
+  /**
+   * 逻各斯 (自研 巴别塔 T5, tools/content/custom.mjs garrison_169_a/_b) and 阿斯卡纶 (自研 巴别塔 T3, garrison_166_a/_b),
+   * the maintainer's 「伤害输出」axis of 2026-10-12:
+   *   逻各斯   `<战斗中>每累计造成5000点伤害，使已激活的【巴别塔】【奥术】层数+6 / +8（每场作战至多24 / 32层）`
+   *   阿斯卡纶 `<战斗中>每累计造成4000点伤害，使已激活的【巴别塔】【突袭】层数+2 / +4（每场作战至多6 / 12层）`
+   * ONE handler for both, and the exact mirror of _takedamage above (threshold bb.check_damage, amount
+   * bb.bond_add_count, cap bb.max_add_count_per_battle, the same bond_by_id / by_count / per-(instance, bond) cap path
+   * through fireGain, the same `busy` re-entry guard — adding layers may run other content such as 魔王's +extra).
+   *
+   * Hook `damaged`, NOT `hit`: the design note asks for the ACUTAL damage dealt (实际造成伤害), and `damaged` is the
+   * engine's one event that carries it — the same value damage.js adds to the attacker's `stats.dmg` (the results
+   * screen's 造成伤害). `hit` fires BEFORE mitigation, dodge and the 伤判 effects, so it cannot report what was dealt.
+   * The three [ASSUMED] readings, chosen to match `stats.dmg` (damage.js line "damage dealt … count only HP removed
+   * from the other side") rather than to invent a second definition:
+   *   ① only damage the HOLDER dealt to an ENEMY (source === the instance's unit, target.side === 'enemy'). Self damage
+   *      (a 源石溶剂 drain, a kit's own loseHp) does not count, and neither does friendly fire — `stats.dmg` skips them
+   *      the same way (`source.side !== target.side`). Element gauge chips (type 'element', applyElement) are not HP
+   *      damage and are skipped, exactly as in _takedamage.
+   *   ② over-kill is NOT counted. `damaged` carries the pre-clamp `amount`, so the reading uses the same clamp
+   *      `stats.dmg` gets from applyHpLoss — `max(0, min(amount, target.hp))` (the HP the bar actually lost, 0 for an
+   *      already-dead target). _takedamage could not do this (a lethal hit leaves the holder at 0 and the hook exposes
+   *      no clamped value); here the target is the one whose HP is known, so the counter is exact.
+   *   ③ a 流失 (battle.loseHp / isHpLoss) is excluded, symmetric with the 承伤 axis: it removes HP but is no 造成伤害
+   *      (PRTS 伤害分类, kits/ops/op-odda.js reads it the same way). It also never reaches `stats.dmg`.
+   *   [ASSUMED] as in _takedamage, a threshold crossing is consumed whether or not it lands (an inactive bond / a
+   *   reached cap takes the crossing and adds nothing).
+   */
+  act1autochess_gar_event_dealdamage(battle, list) {
+    const m = byUnit(list);
+    battle.on('damaged', (c) => {
+      const src = c.source, t = c.target;
+      if (!src || !t || t.side !== 'enemy' || c.type === 'element' || isHpLoss(c.dmg)) return;
+      if (!(c.amount > 0)) return;
+      const arr = m.get(src);
+      if (!arr) return;
+      const dealt = Math.max(0, Math.min(c.amount, t.hp)); // the HP the bar actually lost (stats.dmg's clamp)
+      if (!(dealt > 0)) return;
+      for (let i = 0; i < arr.length; i++) {
+        const it = arr[i];
+        if (it.busy) continue;
+        const need = S.num(it.bb.check_damage, 0);
+        if (!(need > 0)) continue;
+        it.acc = (it.acc ?? 0) + dealt;
+        if (it.acc < need) continue;
+        it.busy = true;
+        try {
+          while (it.acc >= need) { it.acc -= need; fireGain(battle, it); }
+        } finally { it.busy = false; }
+      }
+    });
+  },
+
+  act1autochess_gar_event_selfdead(battle, list) {    const m = byUnit(list);
     battle.on('death', ({ unit, reason }) => {
       if (reason !== 'killed') return;
       const arr = m.get(unit);
@@ -373,6 +526,13 @@ const INSTALLERS = {
 // ---------------------------------------------------------------------------------------------------------------------
 // layer readers (每叠加N层)
 
+// The readers, by their TIMING (§29.20 — the official attrByBond note "（※仅在每次部署时判定盟约层数）"):
+//   attrByBond   judged at every (re)deployment (judgeAttrByBond, the `deploy` hook); a layer gain in between never
+//                refreshes it. Its blackboard halves are the only ones the official card marks per-deployment.
+//   the rest     follow the layer gains (`layerGain` → one deferred applyReader per gain): 144 再部署时间 is read at a
+//                knock-out, 115 is the "部署后100秒内" window, 101 is read at each hit. Their official texts carry no
+//                per-deployment note, so neither does the engine.
+const DEPLOY_READERS = new Set(['act1autochess_gar_eff_attrByBond']);
 const READERS = new Set([
   'act1autochess_gar_eff_attrByBond', 'act1autochess_gar_eff_respawnTimeByBond',
   'act2autochess_gar_eff_attrByBond_add_onstart', 'act2autochess_gar_eff_ab_damageScaleByBond',
@@ -386,13 +546,58 @@ export function stepsOf(battle, it) {
   return Math.floor(sum / div);
 }
 
+/**
+ * Buff mods of an attrByBond blackboard at `k` = the step count of stepsOf().
+ *
+ * Two halves, both FRACTIONS (`0.4` = +40 %) and both 直接乘算 (support directMods → the additive percentage buckets
+ * the official 卫戍 systems share, constants.js DIRECT_BONUS_STACKING 'add'):
+ *   fixed    `base_atk` / `base_max_hp` / `base_def` / `base_attack_speed` / `base_hp_recovery_per_sec` /
+ *            `base_sp_recovery_per_sec` — applied ONCE, whatever k is (0 included);
+ *   per step the un-prefixed `atk` / `max_hp` / `def` / `attack_speed` / `hp_recovery_per_sec` /
+ *            `sp_recovery_per_sec` — multiplied by k.
+ * One row can carry both (`base_atk: 0.2, atk: 0.01, divide_num: 3` is "攻击力和生命值+20%；【X】每叠加3层…+1%"), which
+ * is how the fiat rows whose official text writes the fixed part on a separate `garrison_03`-family row are merged.
+ *
+ * NOT the GAIN_BUFF family: there `bb.atk: 1.2` under battleRuneKey `char_attribute_mul` is a MULTIPLIER (atkMul),
+ * a different number for the same sentence ("攻击力和生命值+20%"). The two are never mixed; an attrByBond row must
+ * write fractions only.
+ */
 function attrMods(bb, k) {
-  // "每叠加N层，本干员攻击力+X%": a 直接乘算 bonus like every other "+X%" of the 卫戍 systems (support directMods)
-  const m = S.directMods({ atk: S.num(bb.atk, 0) * k, hp: S.num(bb.max_hp, 0) * k, def: S.num(bb.def, 0) * k });
-  if (S.num(bb.attack_speed, 0)) m.aspd = S.num(bb.attack_speed) * k;
-  if (S.num(bb.hp_recovery_per_sec, 0)) m.hpRegen = S.num(bb.hp_recovery_per_sec) * k;
-  if (S.num(bb.sp_recovery_per_sec, 0)) m.spRecoveryFlat = S.num(bb.sp_recovery_per_sec) * k;
+  const per = (key) => S.num(bb[key], 0) * k;
+  const parts = {
+    atk: S.num(bb.base_atk, 0) + per('atk'),
+    hp: S.num(bb.base_max_hp, 0) + per('max_hp'),
+    def: S.num(bb.base_def, 0) + per('def'),
+  };
+  const num = (v) => Number.isFinite(v) && v !== 0;
+  const m = S.directMods(parts);
+  const aspd = S.num(bb.base_attack_speed, 0) + per('attack_speed');
+  if (num(aspd)) m.aspd = aspd;
+  const hpRegen = S.num(bb.base_hp_recovery_per_sec, 0) + per('hp_recovery_per_sec');
+  if (num(hpRegen)) m.hpRegen = hpRegen;
+  const spRecoveryFlat = S.num(bb.base_sp_recovery_per_sec, 0) + per('sp_recovery_per_sec');
+  if (num(spRecoveryFlat)) m.spRecoveryFlat = spRecoveryFlat;
   return m;
+}
+
+/** Does the row's fixed half survive k = 0? (then the buff goes on from the first recompute, not from step 1) */
+function hasBaseAttr(bb) {
+  return ['base_atk', 'base_max_hp', 'base_def', 'base_attack_speed', 'base_hp_recovery_per_sec', 'base_sp_recovery_per_sec']
+    .some((key) => S.num(bb[key], 0) !== 0);
+}
+
+/**
+ * The layer count of ONE deployment (the official note "（※仅在每次部署时判定盟约层数）", DESIGN §29.20): every
+ * (re)deployment judges `k = stepsOf()` again and replaces the passive buff; between two deployments a layer gain never
+ * moves it. Called from the `deploy` hook — also for the elite ids and for a 【移动】 (a deployment officially).
+ */
+function judgeAttrByBond(battle, it) {
+  const k = stepsOf(battle, it);
+  it.k = k;
+  const key = `gar:${it.gid}`;
+  // k > 0 keeps the historical behaviour of the official texts; a fixed `base_*` half is applied from step 0
+  if (k > 0 || hasBaseAttr(it.bb)) S.passiveBuff(battle, it.unit, key, attrMods(it.bb, k));
+  else battle.removeBuff(it.unit, key);
 }
 
 function applyReader(battle, it) {
@@ -402,10 +607,7 @@ function applyReader(battle, it) {
   const u = it.unit;
   const key = `gar:${it.gid}`;
   switch (it.key) {
-    case 'act1autochess_gar_eff_attrByBond':
-      if (k > 0) S.passiveBuff(battle, u, key, attrMods(it.bb, k));
-      else battle.removeBuff(u, key);
-      break;
+    // no 'act1autochess_gar_eff_attrByBond' case: that reader is judged once per deployment (judgeAttrByBond)
     case 'act1autochess_gar_eff_respawnTimeByBond':
       // 耀骑士临光's 144: −1.5 % / −3 % per 3 卡西米尔 layers with no minimum in the blackboard (divide_num, respawn_time
       // only) — clamped at 0 like every other redeploy multiplier, so a knock-out timer can reach 0 s (GitHub #370;
@@ -430,17 +632,32 @@ function onstartBuff(battle, it, duration) {
 }
 
 function installReaders(battle, by) {
-  const list = [];
-  for (const key of READERS) for (const it of by.get(key) ?? EMPTY) list.push(it);
-  if (!list.length) return;
-  const recompute = () => { for (const it of list) applyReader(battle, it); };
-  recompute();
-  let pending = false;
-  battle.on('layerGain', () => {
-    if (pending) return;
-    pending = true;
-    battle.after(0, () => { pending = false; recompute(); });
-  });
+  const snap = [];   // attrByBond: judged once per (re)deployment, never on a layer gain
+  const live = [];   // the other readers: their blackboards carry no per-deployment note
+  for (const key of READERS) {
+    const out = DEPLOY_READERS.has(key) ? snap : live;
+    for (const it of by.get(key) ?? EMPTY) out.push(it);
+  }
+  if (!snap.length && !live.length) return;
+  if (live.length) {
+    const recompute = () => { for (const it of live) applyReader(battle, it); };
+    recompute();
+    let pending = false;
+    battle.on('layerGain', () => {
+      if (pending) return;
+      pending = true;
+      battle.after(0, () => { pending = false; recompute(); });
+    });
+  }
+  if (snap.length) {
+    // a unit that never deploys gets nothing (部署才判定); every later deployment — a redeploy after a knock-out, the
+    // 突袭 landing, a 【移动】 — judges the layers of that instant again
+    const m = byUnit(snap);
+    battle.on('deploy', ({ unit }) => {
+      const arr = m.get(unit);
+      if (arr) for (const it of arr) judgeAttrByBond(battle, it);
+    });
+  }
   const onstart = by.get('act2autochess_gar_eff_attrByBond_add_onstart');
   if (onstart) {
     const m = byUnit(onstart);

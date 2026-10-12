@@ -1,5 +1,6 @@
 // The operator kit layout (server/sim/content/kits/README.md): every file of kits/ops/ is listed once in kits/index.js
-// KIT_FILES, STANDIN_KIT_FILES or OPERATOR_KIT_FILES and nothing else is; a file `<chessId>-<codename>.js` registers
+// KIT_FILES, STANDIN_KIT_FILES or OPERATOR_KIT_FILES and nothing else is — the `op-<codename>.js` file a shim imports as
+// its shared implementation (SHARED_IMPL below) is not a registry entry; a file `<chessId>-<codename>.js` registers
 // exactly the kit of `<chessId>_a`, whose data record has that charId code name; a 补位 file `standin-<codename>.js`
 // registers exactly the kit of the stand-in character whose charId has that code name (data/backups.json `units`); a
 // 自选 file `op-<codename>.js` registers exactly the kit of the owned-6★ pick with that code name (data/backups.json
@@ -23,10 +24,21 @@ const CHESS = JSON.parse(readFileSync(join(ROOT, 'data/chess.json'), 'utf8'));
 const BACKUPS = JSON.parse(readFileSync(join(ROOT, 'data/backups.json'), 'utf8'));
 const jsIn = (dir) => readdirSync(join(KIT_DIR, dir)).filter((f) => f.endsWith('.js')).sort();
 
+/**
+ * The shared implementation files of the registered shims: a `<chessId>-<codename>.js` kit may delegate its builder to an
+ * `op-<codename>.js` file (`import op from './op-…js'`, the 克莱门莎 / 巴别塔 pattern — one implementation serving the
+ * operator and every chess record of it). Such a file is not a registry entry of its own and is therefore not listed.
+ */
+const SHARED_IMPL = new Set();
+for (const file of KIT_FILES.flat()) {
+  const src = readFileSync(join(KIT_DIR, 'ops', file), 'utf8');
+  for (const [, dep] of src.matchAll(/\bfrom\s+['"]\.\/(op-[a-z0-9]+\.js)['"]/g)) SHARED_IMPL.add(dep);
+}
+
 test('kits/index.js lists every kit file of kits/ops/ exactly once, and only those', () => {
   const listed = [...KIT_FILES.flat(), ...STANDIN_KIT_FILES, ...OPERATOR_KIT_FILES];
   assert.equal(new Set(listed).size, listed.length, 'a file listed twice');
-  assert.deepEqual([...listed].sort(), jsIn('ops'));
+  assert.deepEqual([...listed].sort(), jsIn('ops').filter((f) => !SHARED_IMPL.has(f)));
 });
 
 test('a stand-in kit file standin-<codename>.js registers the kit of that stand-in charId (data/backups.json units)', async () => {

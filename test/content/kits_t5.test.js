@@ -2,6 +2,7 @@
 // signature effect is asserted with numbers taken from its own blackboards (normal Lv4 / elite Lv7).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { makeBattle, enemyRec, chessRec, checkInvariants } from '../helpers/battleHarness.js';
 import { TIER_KITS } from '../../server/sim/content/kits/index.js';
 
@@ -17,9 +18,16 @@ const fxOf = (h, kind) => h.eventsOf('fx').filter((e) => e[1] === kind);
 const absKeysHas = (grid, u, r, c) => grid.some(([dr, dc]) => u.tileR + dr === r && u.tileC + dc * u.facing === c);
 const clean = (h) => { assert.deepEqual(h.b.errors.map((e) => `${e.label}: ${e.message}`), []); checkInvariants(h.b); };
 
-test('tier-5 registry: all 23 non-DIY tier-5 chess have a hand-authored kit', () => {
+test('tier-5 registry: the tier-5 kit group covers the data\'s visible T5 chess and nothing else', () => {
   const ids = Object.keys(KITS).sort();
-  assert.equal(ids.length, 23);
+  assert.equal(ids.length, 26);
+  // 22 visible non-DIY T5 chess (data/chess.json: `tier === 5 && !isGolden && !isDiy && visible`, `docs/DATA.md` §19) +
+  // the 4 hidden T5 records an operator still carries a kit for (chess_char_5_04_a 华法琳 / 5_09_a 魔王 / 5_16_a 白面鸮 /
+  // 5_18_a 百炼嘉维尔 — their hidden forms are fielded by effects, so their kits stay registered)
+  const CHESS = JSON.parse(readFileSync(new URL('../../data/chess.json', import.meta.url), 'utf8'));
+  const visible = Object.values(CHESS).filter((c) => c.tier === 5 && !c.isGolden && !c.isDiy && c.visible).map((c) => c.chessId).sort();
+  assert.equal(visible.length, 22);
+  for (const id of visible) assert.ok(KITS[id], `kit for ${id}`);
   for (let i = 1; i <= 23; i++) assert.ok(KITS[`chess_char_5_${String(i).padStart(2, '0')}_a`], `kit for 5_${i}`);
   for (const id of ids) {
     const h = makeBattle({ units: [{ chessId: id, row: 10, col: 5 }], autoFinish: false, timeLimit: 3 });

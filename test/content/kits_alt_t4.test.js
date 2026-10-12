@@ -41,7 +41,9 @@ function battle(units, o = {}) {
 
 test('tier4 loadouts: every selectable skill of every visible chess is hand-authored (normal + elite)', () => {
   const rep = kitCoverage({ tier: 4 });
-  assert.equal(rep.summary.chess, 22);
+  // 23 = the official 22 visible T4 records + 珊比 (chess_char_4_27_a), the 元素 bond's promoted 本源铁卫
+  // (docs/research/17-element-bond.md §3, data/chess.json `tier === 4 && visible`)
+  assert.equal(rep.summary.chess, 23);
   assert.equal(rep.summary.covered, rep.summary.skills, JSON.stringify(rep.chess.flatMap((r) => r.skills.filter((s) => !s.covered).map((s) => `${r.name} S${s.index + 1}`))));
   for (const base of T4) {
     const { skills } = loadoutOptions(C[base], C[gold(base)]);

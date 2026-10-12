@@ -63,7 +63,9 @@ function cast(h, u, max = 15) {
 
 test('tier 5: every selectable skill of every visible chess has a hand-authored spec (normal + elite)', () => {
   const rep = kitCoverage({ tier: 5 });
-  assert.equal(rep.summary.chess, 19);
+  // 22 = the official 19 visible T5 records + the 巴别塔 layer's 赫德雷 (chess_char_5_06_babel_a), 维什戴尔
+  // (chess_char_5_07_babel_a) and the extended 妮芙 (chess_char_5_22_babel_a) — docs/research/15-babel-bond.md §1
+  assert.equal(rep.summary.chess, 22);
   assert.equal(rep.summary.covered, rep.summary.skills, rep.chess.flatMap((r) => r.skills.filter((s) => !s.covered).map((s) => `${r.name} S${s.index + 1}`)).join(', '));
   assert.equal(rep.summary.chessFullyCovered, rep.summary.chess);
 });

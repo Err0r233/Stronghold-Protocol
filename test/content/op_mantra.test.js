@@ -67,7 +67,9 @@ test('真言 in every 自选 form: her operator kit (all three skills authored),
       assert.deepEqual([u.base.maxHp, u.base.atk, u.base.def], [form.stats.maxHp + (m?.attr.maxHp ?? 0), form.stats.atk + (m?.attr.atk ?? 0), form.stats.def], `${label(f)}: stats`);
       assert.deepEqual([u.s.blockCnt, u.profile.attack, u.profile.dmgType, u.profile.canHitFly, u.base.bat], [1, 'ranged', 'arts', true, 1.6], `${label(f)}: 本源术师`);
       assert.deepEqual(u.liveRangeGrid, form.rangeGrid, `${label(f)}: 3-1`);
-      assert.deepEqual([u.def.bonds, u.def.raw.garrisonIds], [['sargonShip'], []], `${label(f)}: bonds / 特质`);
+      // 萨尔贡 (her faction) + 巴别塔: the 巴别塔 layer's `powerIdList ['babel']` makes the owned picks whose official
+      // powers carry babel derive the core bond (tools/content/custom.mjs; docs/DATA.md §19, docs/research/15-babel-bond.md §1)
+      assert.deepEqual([u.def.bonds, u.def.raw.garrisonIds], [['sargonShip', 'babelShip'], []], `${label(f)}: bonds / 特质`);
       assert.ok(!u.s.flags.liftoff && !u.s.flags.camou && !u.s.flags.stealth, `${label(f)}: ground enemies target her`);
       done(h);
     }

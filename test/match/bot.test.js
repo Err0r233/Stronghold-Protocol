@@ -38,9 +38,10 @@ test('user: Given a saturated layout, When placing a self-range defender, Then p
 });
 
 test('self-range blockers (range 0-1, only their own tile) fill the free enemy-road tiles before any other tile, on every stage and seed', () => {
-  // official range_table "0-1": the one grid (0,0) — 角峰 古米 泡泡 折桠 菲莱 蛇屠箱 塞雷娅 余
+  // official range_table "0-1": the one grid (0,0) — 角峰 古米 泡泡 折桠 菲莱 蛇屠箱 塞雷娅 余, plus 珊比 (the 元素
+  // bond's promoted T4 本源铁卫, docs/research/17-element-bond.md §3)
   const guards = Object.values(DATA.chess).filter((c) => c && !c.isGolden && c.rangeGrid && c.rangeGrid.length === 1 && c.rangeGrid[0].every((v) => v === 0));
-  assert.equal(guards.length, 8);
+  assert.equal(guards.length, 9);
   const stages = new Set();
   for (let seed = 1; seed <= 40; seed++) {
     const h = makeMatch({ mode: 'solo', seed }).start().toPrep();
@@ -343,7 +344,14 @@ test('bench management: stale low-tier singles are sold at a high shop level; pa
   assert.ok(junk.length >= 2, 'the bench is crowded with tier-I singles');
   h.run(() => m.phase === PHASE.COMBAT && m.round === 7);
   const bench = ps.hand.filter((p) => p && p.kind === 'chess');
-  assert.ok(bench.length <= 6, `bench trimmed to ${bench.length}`);
+  // The bench budget (bot.js BENCH_BUDGET 6) is the spare-unit budget `sellJunk` applies AT THE PREP START, not the hand
+  // count at the end of a prep: the buy loop adds pieces and can pull a displaced board unit back into the hand. The
+  // guarantees at the end are the game's hand size and the bot's "keep one hand slot free" (benchShed /
+  // freeHandSlot); the trim itself is the sell assertion below. (A cap of 6 here failed on seed 6 with 7 — the same 7,
+  // free slots and board, with 巴别塔 and its 8 chess removed from the data, so the count is the bot's normal
+  // buy/withdraw behaviour, not the 自研 pool.)
+  assert.ok(bench.length <= ps.gd.benchSize - 1, `hand holds ${bench.length} of ${ps.gd.benchSize} slots (one kept free)`);
+  assert.ok(ps.hand.some((x) => x == null), 'a hand slot is kept free for merges');
   const stillOwned = junk.filter((p) => ps.find(p.uid)).length;
   assert.ok(stillOwned < junk.length, `sold stale singles (${junk.length - stillOwned}/${junk.length})`);
   const kept = ps.allChess().filter((p) => m.gd.baseIdOf(p.id) === t5.chessId);

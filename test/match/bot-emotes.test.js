@@ -64,12 +64,14 @@ test('gift reactions identify the source player rather than an operator display 
   assert.equal(BE.onGiftTicker(m, ai, human.playerId), true);
   assert.equal(messages.length, 1);
 });
-test('environment switch suppresses every emote entry point', () => {
+test('environment switch suppresses every emote entry point', (t) => {
   const r = spawnSync(process.execPath, ['--input-type=module', '-e', `
     import {sendEmote} from './server/match/botEmotes.js';
     const ai={playerId:'ai',isBot:true,alive:true};
     if(sendEmote({order:[ai,{isBot:false}]},ai,'autochess_battle_thanks')) process.exit(2);
   `], { env: { ...process.env, SP_BOT_EMOTES: '0' }, encoding: 'utf8' });
+  // A confined sandbox refuses the child process (EPERM): nothing to assert about a run that never started.
+  if (typeof r.stderr !== 'string') return t.skip(`no child process in this environment (${r.error?.code ?? 'no output'})`);
   assert.equal(r.status, 0, r.stderr);
 });
 test('actual match emote and merge hooks broadcast without errors', (t) => {

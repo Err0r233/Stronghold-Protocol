@@ -37,7 +37,9 @@ const atkHits = (h, u, skill = null) => h.hooksOf('damaged').filter((c) => c.sou
 
 test('coverage: every selectable skill of every visible tier-3 chess is hand-authored (normal + 精锐)', () => {
   const rep = kitCoverage({ tier: 3 });
-  assert.equal(rep.summary.chess, 19);
+  // 21 = the official 19 visible T3 records + the 巴别塔 layer's 阿斯卡纶 (chess_char_3_05_babel_a) and 逻各斯
+  // (chess_char_3_23_babel_a, docs/research/15-babel-bond.md §1, data/chess.json `tier === 3 && visible`)
+  assert.equal(rep.summary.chess, 21);
   assert.equal(rep.summary.covered, rep.summary.skills, rep.chess.filter((r) => r.skills.some((s) => !s.covered)).map((r) => r.name).join(' '));
   for (const r of rep.chess) for (const s of r.skills) if (!s.isDefault) assert.deepEqual([s.normal, s.elite], ['skills', 'skills'], `${r.name} S${s.index + 1}`);
 });
@@ -47,9 +49,13 @@ test('skills map: each alternate spec is built from its OWN record whichever ski
   for (const r of rows) for (const id of BOTH(r.chessId)) {
     const d0 = ds.getChess(id);
     const kit = KITS[r.chessId](d0.skill.bb, d0.raw, d0);
+    // The keys the kit authors are its own business (the 巴别塔 layer's 阿斯卡纶 authors her S1 too, and her coverage row
+    // carries it as the default). What must hold is the other way round: every ALTERNATE selectable skill of the record is
+    // in the map, so the alternate specs below can be compared one by one.
     const alts = r.skills.filter((s) => !s.isDefault).map((s) => s.skillId);
-    assert.deepEqual(Object.keys(kit.skills ?? {}).sort(), alts.slice().sort(), `${id} skills keys`);
-    for (const sid of alts) {
+    const keys = Object.keys(kit.skills ?? {});
+    for (const sid of alts) assert.ok(keys.includes(sid), `${id} authors ${sid} (kit keys: ${keys.join(', ')})`);
+    for (const sid of keys) {
       const dS = LD(id, sid);
       assert.equal(skillSpecSource(dS, KITS), 'skills', `${id} ${sid}`);
       const own = KITS[r.chessId](dS.skill.bb, dS.raw, dS).skills[sid];

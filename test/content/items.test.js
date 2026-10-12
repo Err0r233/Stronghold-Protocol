@@ -683,10 +683,11 @@ test('变形同构体: carrier counts as a member of the other item\'s giveBondI
   assert.deepEqual([...unitBonds(h.unit('t_op'))], ['lateranoShip']);
   const h2 = fight({ units: [{ chessId: 't_op', row: 10, col: 4, items: [A('4_08')] }] });
   assert.deepEqual([...unitBonds(h2.unit('t_op'))], [], 'the bond item alone grants nothing');
-  // every giveBondId item grants its bond (14 bonds)
+  // every giveBondId item grants its bond (14 official bonds + the 自研 巴别塔誓言's babelShip = 15)
   const grants = Object.values(DATA.items).filter((r) => r.giveBondId && !r.isGolden);
-  assert.equal(grants.length, 18);
-  assert.equal(new Set(grants.map((r) => r.giveBondId)).size, 14);
+  assert.ok(grants.some((r) => r.id === 'chess_item_2_08_e_a' && r.giveBondId === 'babelShip'), 'the 巴别塔誓言 is one of them');
+  assert.equal(grants.length, 19);
+  assert.equal(new Set(grants.map((r) => r.giveBondId)).size, 15);
   for (const r of grants) {
     const hh = fight({ units: [{ chessId: 't_op', row: 10, col: 4, items: [r.id, A('6_09')] }] });
     assert.ok(unitBonds(hh.unit('t_op')).includes(r.giveBondId), r.id);
@@ -703,6 +704,7 @@ test('变形同构体: carrier counts as a member of the other item\'s giveBondI
   assert.equal(ps.bonds.victoriaShip.count, before + 1);
   assert.equal(DATA.items[A('6_09')].upgradeNum, 100);
   cover(A('6_09'), B('6_09'), A('1_01'));
+  cover('chess_item_2_08_e_a', 'chess_item_2_08_e_b');
 });
 
 test('lendItemEffects (萨尔贡 × 娜仁图亚): tier ≤ V battle effects lent for 60 s, then removed', () => {
@@ -1274,9 +1276,17 @@ test('merging: two identical normal items become the golden one (upgradeNum 2); 
   cover(A('3_07'), B('3_07'));
 });
 
+// The three 自研 巴别塔 专属装备 (tools/content/custom.mjs BABEL_ITEMS; docs/research/15-babel-bond.md §6.4) are
+// exercised in test/content/babel_items.test.js — their keys are covered there, so the coverage list below closes over
+// them by name.
+const BABEL_ITEM_IDS = ['chess_item_2_08_e_a', 'chess_item_2_08_e_b', 'chess_item_5_10_e_a', 'chess_item_5_10_e_b',
+  'chess_item_6_12_e_a', 'chess_item_6_12_e_b'];
+
 test('coverage: every equipment (normal + golden) and every Art is exercised by a test above', () => {
-  // items whose numbers are asserted in the stat table, the proc tests or the meta tests
+  // items whose numbers are asserted in the stat table, the proc tests or the meta tests — plus the three 自研 巴别塔
+  // items of content/babel_items.test.js (their own suite; the key coverage is claimed here, never silently skipped)
+  for (const id of BABEL_ITEM_IDS) cover(id);
   const missing = Object.keys(DATA.items).filter((id) => !COVER.has(id)).sort();
   assert.deepEqual(missing, []);
-  assert.equal(Object.keys(DATA.items).length, 115);
+  assert.equal(Object.keys(DATA.items).length, 121);
 });

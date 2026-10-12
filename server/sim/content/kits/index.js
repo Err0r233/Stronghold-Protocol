@@ -29,20 +29,27 @@ export const KIT_FILES = Object.freeze([
     'chess_char_1_05-vigna.js', 'chess_char_1_06-vendla.js', 'chess_char_1_07-prove.js', 'chess_char_1_08-texas.js',
     'chess_char_1_09-caper.js', 'chess_char_1_10-sunbr.js', 'chess_char_1_11-skgoat.js', 'chess_char_1_12-estell.js',
     'chess_char_1_13-podego.js', 'chess_char_1_14-greyy.js', 'chess_char_1_16-tinman.js', 'chess_char_1_17-indigo.js',
-    'chess_char_1_18-utage.js', 'chess_char_1_19-wildmn.js', 'chess_char_1_20-liskam.js'],
+    'chess_char_1_18-utage.js', 'chess_char_1_19-wildmn.js', 'chess_char_1_20-liskam.js',
+    // 「巴别塔」自研核心盟约的 T1 成员 (docs/research/15-babel-bond.md §2), the 商店棋 fiat records of tools/content/custom.mjs
+    'chess_char_1_05_babel-savage.js', 'chess_char_1_06_babel-odda.js'],
   // tier 2
   ['chess_char_2_01-excu.js', 'chess_char_2_02-silent.js', 'chess_char_2_03-slchan.js', 'chess_char_2_04-grabds.js',
     'chess_char_2_05-harold.js', 'chess_char_2_06-papyrs.js', 'chess_char_2_07-ghost.js', 'chess_char_2_08-bubble.js',
     'chess_char_2_09-humus.js', 'chess_char_2_10-rockr.js', 'chess_char_2_11-kazema.js', 'chess_char_2_12-gravel.js',
     'chess_char_2_13-tippi.js', 'chess_char_2_14-flower.js', 'chess_char_2_15-akkord.js', 'chess_char_2_16-whitew.js',
-    'chess_char_2_17-branch.js', 'chess_char_2_18-ashlok.js', 'chess_char_2_19-tinman.js'],
+    'chess_char_2_17-branch.js', 'chess_char_2_18-ashlok.js', 'chess_char_2_19-tinman.js',
+    // 「巴别塔」T2 成员 阿米娅·医疗 (docs/research/15-babel-bond.md §2)
+    'chess_char_2_05_babel-amiya3.js'],
   // tier 3
   ['chess_char_3_01-angel.js', 'chess_char_3_02-ayer.js', 'chess_char_3_03-swire.js', 'chess_char_3_04-swire2.js',
     'chess_char_3_05-skadi.js', 'chess_char_3_06-philae.js', 'chess_char_3_07-forcer.js', 'chess_char_3_08-mint.js',
     'chess_char_3_09-haini.js', 'chess_char_3_10-pinecn.js', 'chess_char_3_11-snhunt.js', 'chess_char_3_12-blemsh.js',
     'chess_char_3_13-malist.js', 'chess_char_3_14-slbell.js', 'chess_char_3_15-vodfox.js', 'chess_char_3_16-snakek.js',
     'chess_char_3_17-shotst.js', 'chess_char_3_18-vulpis.js', 'chess_char_3_19-vigil.js', 'chess_char_3_20-kjera.js',
-    'chess_char_3_21-archet.js'],
+    'chess_char_3_21-archet.js',
+    // 「巴别塔」T3 成员 (docs/research/15-babel-bond.md §2): OPEN-4 转正的商店棋 — their kits stay in the op-*.js files,
+    // registered under the chess id by these shims (their charIds left diy.ownedPool, so they are no longer 自选 picks)
+    'chess_char_3_05_babel-ascln.js', 'chess_char_3_06_babel-closur.js'],
   // tier 4
   ['chess_char_4_01-rmixer.js', 'chess_char_4_02-mostma.js', 'chess_char_4_03-kjera.js', 'chess_char_4_04-ines.js',
     'chess_char_4_05-beewax.js', 'chess_char_4_06-kroos2.js', 'chess_char_4_07-bpipe.js', 'chess_char_4_08-rosesa.js',
@@ -50,21 +57,28 @@ export const KIT_FILES = Object.freeze([
     'chess_char_4_13-gnosis.js', 'chess_char_4_14-lionhd.js', 'chess_char_4_15-reckpr.js', 'chess_char_4_16-texas2.js',
     'chess_char_4_17-hsguma.js', 'chess_char_4_18-mudrok.js', 'chess_char_4_19-flamtl.js', 'chess_char_4_20-fartth.js',
     'chess_char_4_21-plosis.js', 'chess_char_4_22-svrash.js', 'chess_char_4_23-gvial2.js', 'chess_char_4_24-billro.js',
-    'chess_char_4_25-cetsyr.js', 'chess_char_4_26-bldsk.js'],
+    'chess_char_4_25-cetsyr.js', 'chess_char_4_26-bldsk.js',
+    // 「元素」自研附加盟约的 T4 成员 珊比 (docs/research/17-element-bond.md §3): 自选 转正为商店棋 —
+    // her kit stays in op-thumpy.js, registered under the chess id by this shim
+    'chess_char_4_27-thumpy.js'],
   // tier 5
   ['chess_char_5_01-excu2.js', 'chess_char_5_02-titi.js', 'chess_char_5_03-blaze2.js', 'chess_char_5_04-bldsk.js',
     'chess_char_5_05-ulpia.js', 'chess_char_5_06-etlchi.js', 'chess_char_5_07-surtr.js', 'chess_char_5_08-horn.js',
     'chess_char_5_09-cetsyr.js', 'chess_char_5_10-lisa.js', 'chess_char_5_11-demkni.js', 'chess_char_5_12-dusk.js',
     'chess_char_5_13-ghost2.js', 'chess_char_5_14-svash2.js', 'chess_char_5_15-thorn2.js', 'chess_char_5_16-plosis.js',
     'chess_char_5_17-f12yin.js', 'chess_char_5_18-gvial2.js', 'chess_char_5_19-mlynar.js', 'chess_char_5_20-aglina.js',
-    'chess_char_5_21-sntlla.js', 'chess_char_5_22-nymph.js', 'chess_char_5_23-reckpr.js'],
+    'chess_char_5_21-sntlla.js', 'chess_char_5_22-nymph.js', 'chess_char_5_23-reckpr.js', 'chess_char_5_clemnt-clemnt.js',
+    // 「巴别塔」T5 成员 (docs/research/15-babel-bond.md §2, OPEN-4 转正)
+    'chess_char_5_06_babel-hodrer.js', 'chess_char_5_07_babel-logos.js'],
   // tier 6 (and 盟约·辅助干员 chess_char_1_15, a hidden tier-1 chess always registered with the tier-6 kits)
   ['chess_char_1_15-pithst.js', 'chess_char_6_01-lemuen.js', 'chess_char_6_02-sbell2.js', 'chess_char_6_03-yu.js',
     'chess_char_6_04-skadi2.js', 'chess_char_6_05-pasngr.js', 'chess_char_6_06-pepe.js', 'chess_char_6_07-siege2.js',
     'chess_char_6_08-reed2.js', 'chess_char_6_09-cello.js', 'chess_char_6_10-nymph.js', 'chess_char_6_11-mlyss.js',
     'chess_char_6_12-rosmon.js', 'chess_char_6_13-angel2.js', 'chess_char_6_14-lumen.js', 'chess_char_6_15-qiubai.js',
     'chess_char_6_16-halo2.js', 'chess_char_6_17-nearl2.js', 'chess_char_6_18-whitw2.js', 'chess_char_6_19-blkkgt.js',
-    'chess_char_6_20-agoat2.js'],
+    'chess_char_6_20-agoat2.js',
+    // 「巴别塔」T6 成员 (docs/research/15-babel-bond.md §2, OPEN-4 转正)
+    'chess_char_6_04_babel-wisdel.js'],
 ].map((group) => Object.freeze(group)));
 
 /**
@@ -77,6 +91,10 @@ export const STANDIN_KIT_FILES = Object.freeze(['standin-acguad.js', 'standin-sh
 /**
  * The 自选 operator kit files (`ops/op-<codename>.js`, registry key = the operator's charId, an owned-6★ pick of
  * data/backups.json; a new file is appended). An operator without a file is not offered as a 自选 pick (KITTED_CHARS).
+ * An owned 6★ the mode promotes to a shop chess (OPEN-4: 阿斯卡纶, 可露希尔, 赫德雷, 逻各斯, 维什戴尔; 元素's
+ * docs/research/17-element-bond.md §3: 珊比) leaves this list — its operator record leaves `diy.ownedPool`, so it is no
+ * longer a pick — and its `op-<codename>.js` becomes the shared implementation of the `ops/<chessId>-<codename>.js`
+ * shim in KIT_FILES (kits_layout.test.js SHARED_IMPL).
  */
 export const OPERATOR_KIT_FILES = Object.freeze([
   'op-siege.js',
@@ -92,7 +110,6 @@ export const OPERATOR_KIT_FILES = Object.freeze([
   'op-poca.js',
   'op-typhon.js',
   'op-narant.js',
-  'op-logos.js',
   'op-mantra.js',
   'op-veen.js',
   'op-zuole.js',
@@ -105,7 +122,6 @@ export const OPERATOR_KIT_FILES = Object.freeze([
   'op-lin.js',
   'op-nian.js',
   'op-hsgma2.js',
-  'op-thumpy.js',
   'op-zumama.js',
   'op-judge.js',
   'op-shu.js',
@@ -114,21 +130,17 @@ export const OPERATOR_KIT_FILES = Object.freeze([
   'op-demetr.js',
   'op-cqbw.js',
   'op-phenxi.js',
-  'op-wisdel.js',
   'op-thorns.js',
   'op-chen3.js',
   'op-leizi2.js',
   'op-vvana.js',
   'op-headb2.js',
-  'op-hodrer.js',
   'op-chen2.js',
   'op-ray.js',
-  'op-ascln.js',
   'op-jesca2.js',
   'op-mcnist.js',
   'op-kalts.js',
   'op-sleach.js',
-  'op-closur.js',
   'op-gdglow.js',
   'op-haak.js',
   'op-phatom.js',
@@ -150,7 +162,6 @@ export const OPERATOR_KIT_FILES = Object.freeze([
   'op-necras.js',
   'op-kalts2.js',
   'op-monstr.js',
-  'op-clemnt.js',
 ]);
 
 /**

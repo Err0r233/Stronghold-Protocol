@@ -7,7 +7,7 @@ import { DataSource, getDefaultSource, resolveLoadout, loadoutRecord, hasGenerat
 import { Battle } from '../../server/sim/Battle.js';
 import { loadoutOptions, resolveLoadout as resolveSeatLoadout } from '../../shared/protocol.js';
 import { buildBattleSpec, createBattleFromSpec, resultDigest, withUnitLoadouts, jsonClone } from '../../server/sim/spec.js';
-import { setupUnitKit, selectSkillSpec, skillSpecSource } from '../../server/sim/content/index.js';
+import { setupUnitKit, selectSkillSpec, skillSpecSource, kitOf, KITS } from '../../server/sim/content/index.js';
 import { genericKit } from '../../server/sim/content/generic.js';
 import { makeBattle } from '../helpers/battleHarness.js';
 import { kitCoverage } from '../../tools/kit-coverage.mjs';
@@ -44,13 +44,20 @@ test('resolveLoadout: legal choices resolve, anything else falls back to the def
 
 test('every choice the lobby accepts (shared loadoutOptions) resolves to itself in the sim; defaults agree', { skip }, () => {
   const d = freshDs();
+  // The data gives an elite `modules[]` + the no-module bases only at `status.equipLevel > 0` (docs/DATA.md §2.2). An
+  // elite below that — the 自研 members' elites, tools/content/custom.mjs — has NO module at all, so the lobby labels its
+  // single choice 'none' (loadoutOptions: modules ['none'], defaultModule 'none') while the record-level sim resolves
+  // null (resolveRecordLoadout keys on the array). Both are "no module" and both resolve to the record's own def: the
+  // helper below is that equivalence, used for the default and for the (only) choice 'none'.
+  const noModule = (rec) => rec.status?.equipLevel === 0;
+  const simModule = (rec, module) => (noModule(rec) ? null : module);
   let n = 0;
   for (const c of Object.values(C)) {
     if (c.isGolden || !c.visible) continue;
     const g = C[c.goldenId];
     const opt = loadoutOptions(c, g);
     assert.equal(opt.defaultSkill, c.skill.index, `${c.chessId}: default skill`);
-    assert.equal(opt.defaultModule, resolveLoadout(g, null).moduleId, `${c.chessId}: default module`);
+    assert.equal(opt.defaultModule, noModule(g) ? 'none' : resolveLoadout(g, null).moduleId, `${c.chessId}: default module`);
     for (const skill of opt.skills) {
       for (const module of opt.modules) {
         const seat = { [c.chessId]: { skill, module } };
@@ -59,7 +66,7 @@ test('every choice the lobby accepts (shared loadoutOptions) resolves to itself 
           const def = d.getChess(rec.chessId, lo);
           assert.equal(def.loadout.skillIndex, skill, `${rec.chessId} S${skill + 1}`);
           assert.equal(def.skill.id, rec.skills.find((s) => s.index === skill).skillId);
-          if (rec.isGolden) assert.equal(def.loadout.moduleId, module, `${rec.chessId} ${module}`);
+          if (rec.isGolden) assert.equal(def.loadout.moduleId, simModule(rec, module), `${rec.chessId} ${module}`);
           n++;
         }
       }
@@ -295,8 +302,9 @@ test('harness battle with injected kits: non-default skill via the view uses the
 
 test('tools/kit-coverage: every visible chess and each selectable skill, defaults hand-authored', { skip }, () => {
   const rep = kitCoverage();
-  assert.equal(rep.summary.chess, 112);
-  assert.equal(rep.chess.length, 112);
+  // 122 = the official 113 visible non-DIY chess + the 8 members of the 自研 巴别塔 bond (tools/content/custom.mjs).
+  assert.equal(rep.summary.chess, 122);
+  assert.equal(rep.chess.length, 122);
   for (const r of rep.chess) {
     const ch = loadoutOptions(C[r.chessId], C[C[r.chessId].goldenId]);
     assert.deepEqual(r.skills.map((s) => s.index), ch.skills, `${r.chessId}: selectable skills listed`);
@@ -306,8 +314,23 @@ test('tools/kit-coverage: every visible chess and each selectable skill, default
     }
   }
   assert.equal(rep.summary.skills, rep.chess.reduce((n, r) => n + r.skills.length, 0));
-  // every chess already has a hand-authored kit for its default skill (the coverage baseline kits build on)
-  assert.equal(rep.summary.defaultCovered, rep.summary.defaults);
+  // Every chess has a hand-authored kit for its default skill EXCEPT the 8 members of the maintainer's 自研 巴别塔 bond
+  // (tools/content/custom.mjs), which gain their chess-keyed kits one by one (server/sim/content/kits/ops/
+  // chess_char_*_babel-*.js; tools/kit-coverage.mjs --missing lists what is still open and `--strict` is the CI gate
+  // for the day every kit is authored). Until the last one lands they fight with the generic kit (content/generic.js);
+  // this guards that nothing OUTSIDE the 自研 layer ever loses its default kit, without pinning the open set.
+  const BABEL_MEMBERS = ['chess_char_1_05_babel_a', 'chess_char_1_06_babel_a', 'chess_char_2_05_babel_a',
+    'chess_char_3_05_babel_a', 'chess_char_3_06_babel_a', 'chess_char_5_06_babel_a', 'chess_char_5_07_babel_a',
+    'chess_char_6_04_babel_a'];
+  const noDefaultKit = rep.chess.filter((r) => r.skills.some((s) => s.isDefault && !s.covered)).map((r) => r.chessId);
+  assert.deepEqual(noDefaultKit.filter((id) => !BABEL_MEMBERS.includes(id)), [], 'only the 自研 巴别塔 members may lack a default kit');
+  assert.equal(rep.summary.defaultCovered + noDefaultKit.length, rep.summary.defaults);
+  // …and an uncovered default must mean NO kit builder is registered for that chess at all: a chess whose kit IS
+  // registered (kits/index.js KIT_FILES, `kits/ops/chess_char_<id>-<codename>.js`) but whose default still resolves to
+  // `generic`/`none` is a broken kit, not an unwritten one — that is the failure this guard exists for.
+  for (const id of noDefaultKit) {
+    assert.equal(kitOf(C[id], KITS), undefined, `${id}: uncovered default skill but a kit builder is registered`);
+  }
   assert.equal(kitCoverage({ tier: 6 }).chess.every((r) => r.tier === 6), true);
 });
 

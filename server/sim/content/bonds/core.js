@@ -1,4 +1,5 @@
-// server/sim/content/bonds/core.js — the 8 core bonds (核心盟约, research 02 §3.1–3.8), battle side + prep side.
+// server/sim/content/bonds/core.js — the 9 core bonds (核心盟约, research 02 §3.1–3.8 + the 自研 巴别塔, §29.15),
+// battle side + prep side.
 //
 //   炎 yanShip           members ATK +(base_atk + atk_per_stack·L); 6: one “炎佑” (its template ATK / max HP + 30 %
 //                        of the 炎 ATK / max HP sums at battle start — PRTS "增加…（最终加算）"); 9: two 炎佑, ATK ×atk,
@@ -59,6 +60,8 @@ const BUFF_KEYS = Object.freeze({
   egirShip: 'act1autochess_bond_eff_egir',
   siracusaShip: 'act2autochess_bond_eff_siracusa',
   kazimierzShip: 'act2autochess_bond_eff_kazimierz',
+  // 自研核心盟约 (NOT official): docs/research/15-babel-bond.md, tools/content/custom.mjs
+  babelShip: 'act2autochess_bond_eff_babel',
 });
 const SARGON_SHARE_KEY = 'act2autochess_bond_eff_sargon[share]';
 const VICTORIA_REWARD_KEY = 'bond_layer_added_reward_equip';
@@ -650,6 +653,87 @@ function installKazimierz(battle, pid, bb, members) {
 }
 
 // =====================================================================================================================
+// 巴别塔 babelShip — a maintainer-designed core bond (NOT official; docs/research/15-babel-bond.md v1.3, the
+// blackboards in tools/content/custom.mjs / data/bonds.json).
+//
+// Tier 1 (3 members on board): members ATK and maxHP ×(1 + base_atk + atk_per_stack·L) (直接乘算, like every other core),
+//   plus a rider: every distinct OTHER bond a member carries — counted only for bonds available in this match, since the
+//   player's own snapshot omits the mode's static inactive list (the owner's decision of 2026-10-12, record OPEN-1) —
+//   adds other_bond_kind_atk to the members' ATK, capped at other_bond_kind_atk_cap.
+// Tier 2 (6 members): 「指挥」. At battle start the member with the highest ATK (a snapshot; ties by unit id, so the pick
+//   is stable) becomes the 指挥. Allies in its eight surrounding tiles — and the 指挥 itself (record §1.2) — deal
+//   ×(cmd_damage_scale_base + cmd_damage_scale_per_stack·L) damage, capped at cmd_damage_scale_cap, and their attacks
+//   ignore (cmd_penetrate_base + cmd_penetrate_per_stack·L) of DEF and RES, capped at cmd_penetrate_cap. That penetration
+//   is taken as the STRONGEST single source, never added to 精准's own 30 % (battle.applyStrongest's "same-name effect,
+//   strongest wins" rule — record §1.2 "引擎约定", otherwise 60 % + 30 % would flatten DEF/RES).
+//   The 指挥 passes to the next-highest surviving member when it is knocked out. The check is deferred one tick and
+//   re-reads `alive`/`deployed`, so a 不屈 / 阿戈尔 revive (which redeploys the unit in place inside its own death hook)
+//   keeps the command — the priority order the record asks for without hard-coding another bond's priority.
+const BABEL = 'babelShip';
+const BABEL_L1 = 'bond:babel:l1';
+
+/** Distinct other bonds the members carry that this match can actually activate (record OPEN-1). */
+function babelKinds(battle, pid, members) {
+  const snapshot = S.player(battle, pid)?.bonds || {};
+  const kinds = new Set();
+  for (const u of members) for (const b of S.unitBonds(u)) if (b !== BABEL && snapshot[b]) kinds.add(b);
+  return kinds.size;
+}
+
+/** The 指挥 pick: highest ATK among the deployed members, ties by unit id (deterministic). */
+function babelPick(battle, pid) {
+  let best = null;
+  for (const u of S.bondMembers(battle, pid, BABEL, { fieldOnly: true })) {
+    if (!u.alive || !u.deployed) continue;
+    if (!best || num(u.s?.atk, 0) > num(best.s?.atk, 0) || (num(u.s?.atk, 0) === num(best.s?.atk, 0) && u.id < best.id)) best = u;
+  }
+  return best;
+}
+
+function installBabel(battle, pid, bb, members) {
+  const layers = () => S.bondLayers(battle, pid, BABEL);
+  const refreshL1 = () => {
+    const L = layers();
+    const rider = Math.min(num(bb.other_bond_kind_atk_cap, 0), num(bb.other_bond_kind_atk, 0) * babelKinds(battle, pid, members));
+    const mods = S.directMods({
+      atk: num(bb.base_atk, 0) + num(bb.atk_per_stack, 0) * L + rider,
+      hp: num(bb.base_max_hp, 0) + num(bb.max_hp_per_stack, 0) * L,
+    });
+    for (const u of members) S.passiveBuff(battle, u, BABEL_L1, mods);
+  };
+  refreshL1();
+  // The hook fires before the layer is written (battle/economy.js), so the refresh waits for the next tick — the same
+  // pattern every layered bond uses (core.js:148, addon/battle.js:478).
+  battle.on('layerGain', () => battle.after(0, refreshL1));
+  battle.on('deploy', refreshL1);
+  if (!reached(battle, pid, BABEL, 6)) return;
+
+  let cmd = null;
+  const inAura = (u) => {
+    if (!cmd || !u) return false;
+    if (u === cmd) return true;
+    return Math.max(Math.abs(u.tileR - cmd.tileR), Math.abs(u.tileC - cmd.tileC)) === 1;
+  };
+  battle.on('hit', (c) => {
+    const src = c.source;
+    if (!cmd || !src || src.side !== 'ally' || src.ownerId !== pid || !inAura(src)) return;
+    const L = layers();
+    const scale = Math.min(num(bb.cmd_damage_scale_cap, Infinity), num(bb.cmd_damage_scale_base, 1) + num(bb.cmd_damage_scale_per_stack, 0) * L);
+    c.dmg.mul = num(c.dmg.mul, 1) * scale;
+    const pen = Math.min(num(bb.cmd_penetrate_cap, 1), num(bb.cmd_penetrate_base, 0) + num(bb.cmd_penetrate_per_stack, 0) * L);
+    if (pen > 0) {
+      c.dmg.defIgnorePct = Math.max(num(c.dmg.defIgnorePct, 0), pen);
+      c.dmg.resIgnorePct = Math.max(num(c.dmg.resIgnorePct, 0), pen);
+    }
+  });
+  battle.on('battleStart', () => { cmd = babelPick(battle, pid); });
+  battle.on('death', ({ unit }) => {
+    if (!cmd || unit !== cmd) return;
+    battle.after(0, () => { if (!cmd || !cmd.alive || !cmd.deployed) cmd = babelPick(battle, pid); });
+  });
+}
+
+// =====================================================================================================================
 // entry points
 
 const INSTALLERS = Object.freeze({
@@ -661,6 +745,7 @@ const INSTALLERS = Object.freeze({
   egirShip: installEgir,
   siracusaShip: installSiracusa,
   kazimierzShip: installKazimierz,
+  babelShip: installBabel,
 });
 
 export function install(battle) {

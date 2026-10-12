@@ -415,3 +415,23 @@ test('fortress (号角 / 灰毫) is ground-only and never fires at FLY enemies',
   assert.ok(ground.unit('t_fortress').stats.attacks > 0, 'ground enemies are still attacked');
   assert.ok(ground.enemy('enemy_g').hp < 1e6, 'and take splash damage');
 });
+
+test('本源近卫 (primguard: 克莱门莎) is the plain 近卫 profile with block 2 and may deal 元素伤害', () => {
+  const ds = getDefaultSource();
+  const rec = ds.getChess('chess_char_5_clemnt_a');
+  assert.equal(rec.subProf, 'primguard');
+  const p = resolveProfile(rec);
+  assert.deepEqual([p.dmgType, p.attack, p.projectile, p.canHitFly, p.hitAllBlocked, p.groundOnly],
+    ['phys', 'melee', 'none', false, false, false]);
+  assert.equal(rec.stats.blockCnt, 2, '能够阻挡两个敌人 — the block count the data carries');
+  // 可以造成元素伤害: no profile flag is involved — an element fill / 元素伤害 is the explicit DamageInfo type her kit passes
+  const h = makeBattle({
+    defs: { enemies: { enemy_dummy: dummy() } }, content: 'none', autoFinish: false,
+    units: [{ chessId: 'chess_char_5_clemnt_a', row: 10, col: 5 }],
+  });
+  const u = h.unit('chess_char_5_clemnt_a');
+  const e = h.spawn('enemy_dummy', { pos: [10, 6] });
+  h.b.dealDamage(u, e, { type: 'element', element: 'erosion', amount: 300, tags: ['skill'] });
+  approx(e.elem.erosion, 300, 1e-6);
+  checkInvariants(h.b);
+});
