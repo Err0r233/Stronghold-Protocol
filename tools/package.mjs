@@ -374,6 +374,8 @@ export function playerPackageProblems(pkg, files) {
 /**
  * `v` + version, with a trailing `-dev` removed (`0.2.5-dev` → `v0.2.5`, `0.2.4` → `v0.2.4`).
  * [ASSUMED] an unreleased `-dev` build points player docs at the tag that version will use.
+ * Any OTHER suffix is kept (`0.2.5-e` → `v0.2.5-e`): the 二次开发 marker is not a `-dev` build (docs/history/0.2.5.md
+ * §30.36), and the tag it names exists only once the maintainer creates it.
  * @param {string} version
  */
 export function releaseTag(version) {

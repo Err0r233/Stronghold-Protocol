@@ -2,7 +2,7 @@
 
 《明日方舟》季节性自走棋塔防玩法「卫戍协议：盟约」的**非官方同人复刻**：浏览器即开即玩，单人或 1–4 人联机合作。
 
-![version](https://img.shields.io/badge/version-0.2.5-2ea44f)
+![version](https://img.shields.io/badge/version-0.2.5--E-2ea44f)
 ![license](https://img.shields.io/badge/code%20license-GPL--3.0--or--later-blue)
 ![node](https://img.shields.io/badge/node-22%20%7C%2024-339933)
 
@@ -37,7 +37,7 @@ English summary: [below](#english).
 
 - **独立模拟**（单人）与**同盟模拟**（1–4 人**合作**，没有 PvP；空位可以加 AI 队友）。
 - 服务器是一个 Node.js 程序，**战斗在各玩家的浏览器里模拟**（和官方一样），服务器只管经济与回合，一台低功耗小主机就能开服。
-- 当前版本 0.2.5：3D 棋盘按战场显示官方场景，新增「官方伤害数字」选项，首领每局随机配对，固定赠品和已展示的干员牌不再被库存阻断，并修复了 0.2.4 发布后玩家和 GitHub 上反馈的问题，详见 [CHANGELOG.md](CHANGELOG.md)。仍有少数规则按推断实现，与官方不一致的地方欢迎在 Issue 里反馈。
+- 当前版本 **0.2.5-E（二次开发版）**：在上游 0.2.5 的基础上加入维护者自研层（巴别塔 / 元素盟约、专属装备与自研策略）。上游 0.2.5 的内容：3D 棋盘按战场显示官方场景，新增「官方伤害数字」选项，首领每局随机配对，固定赠品和已展示的干员牌不再被库存阻断，并修复了 0.2.4 发布后玩家和 GitHub 上反馈的问题，详见 [CHANGELOG.md](CHANGELOG.md)。版本号里的 `E` 表示二次开发（包元数据按 semver 记作小写 `0.2.5-e`，见 [docs/history/0.2.5.md](docs/history/0.2.5.md) §30.36）。仍有少数规则按推断实现，与官方不一致的地方欢迎在 Issue 里反馈。
 
 ## 功能一览
 

@@ -4,10 +4,19 @@ import { N_ } from './i18n.js';
 
 export const PROTOCOL_VERSION = 1;
 /** Release version shown to players (title screen, server banner, /healthz). Kept equal to package.json "version"
- * (test/version.test.js); PROTOCOL_VERSION above is the separate wire-format number. */
-export const APP_VERSION = '0.2.5';
+ * (test/version.test.js); PROTOCOL_VERSION above is the separate wire-format number.
+ *
+ * `-E` marks the secondary-development (二次开发) line: this tree continues upstream 0.2.5 with the maintainer's own
+ * layer (the 巴别塔 / 元素 bonds, the 专属装备 and the 自研 策略). package.json / package-lock.json hold the lowercase
+ * legal semver spelling `0.2.5-e` — semver's prerelease identifiers are case-SENSITIVE (`semver.eq('0.2.5-E','0.2.5-e')`
+ * is false), so the two files must not be diffed against this string without normalising the case; the player-facing
+ * string keeps the maintainer's capital E. tools/package.mjs reads the package version, so a release zip is named
+ * `Stronghold-Protocol-v0.2.5-e.zip` and `isDevVersion` (any `-`) makes `--allow-dev` necessary. See
+ * docs/history/0.2.5.md §30.36. */
+export const APP_VERSION = '0.2.5-E';
 /** A development build (the public `dev` branch): the title screen, the boot banner and the README say so, and
- * tools/package.mjs refuses to build a release zip from it without --allow-dev. */
+ * tools/package.mjs refuses to build a release zip from it without --allow-dev. NOTE: this stays a `-dev`-suffix test
+ * only — the 二次开发 marker above is a different thing and never sets DEV_BUILD. */
 export const DEV_BUILD = /-dev$/.test(APP_VERSION);
 
 export const MAX_SEATS = 4;

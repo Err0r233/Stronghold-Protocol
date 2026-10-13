@@ -15,12 +15,24 @@ const pkg = JSON.parse(read('package.json'));
 const lock = JSON.parse(read('package-lock.json'));
 
 test('one release version: package.json, package-lock.json and APP_VERSION', () => {
-  // a release x.y.z, or x.y.z-dev on the public dev branch (the owner's decision of 2026-10-06)
-  assert.match(APP_VERSION, /^\d+\.\d+\.\d+(-dev)?$/);
-  assert.equal(DEV_BUILD, APP_VERSION.endsWith('-dev'));
-  assert.equal(pkg.version, APP_VERSION);
-  assert.equal(lock.version, APP_VERSION);
-  assert.equal(lock.packages[''].version, APP_VERSION);
+  // a release x.y.z, x.y.z-dev on the public dev branch (the owner's decision of 2026-10-06), or x.y.z-E — the
+  // 二次开发 (secondary-development) marker this tree carries above upstream 0.2.5 (docs/history/0.2.5.md §30.36)
+  assert.match(APP_VERSION, /^\d+\.\d+\.\d+(?:-dev|-E)?$/);
+  assert.equal(DEV_BUILD, APP_VERSION.endsWith('-dev'), 'only -dev means a development build; the -E marker never sets DEV_BUILD');
+  // The two spellings are deliberate and NOT interchangeable: semver's prerelease identifiers are case-SENSITIVE
+  // (semver.eq('0.2.5-E', '0.2.5-e') is false), so the package metadata carries the lowercase legal spelling while
+  // the player-facing APP_VERSION keeps the maintainer's capital E.
+  assert.match(pkg.version, /^\d+\.\d+\.\d+(?:-[0-9a-z.-]+)?$/, 'package.json: a lowercase semver version');
+  const same = (v) => String(v).toLowerCase();
+  assert.equal(same(pkg.version), same(APP_VERSION), 'package.json holds the same version (in its lowercase spelling)');
+  assert.equal(same(lock.version), same(APP_VERSION), 'package-lock.json');
+  assert.equal(same(lock.packages[''].version), same(APP_VERSION), 'package-lock.json packages[""]');
+  if (/-E$/.test(APP_VERSION)) {
+    // the marker is spelled out: whichever audience the file serves uses one fixed spelling, never a case variant
+    assert.equal(pkg.version, APP_VERSION.toLowerCase(), 'the 二次开发 marker: package.json uses the lowercase spelling');
+    assert.equal(lock.version, APP_VERSION.toLowerCase(), 'the 二次开发 marker: package-lock.json uses it too');
+    assert.equal(lock.packages[''].version, APP_VERSION.toLowerCase(), 'the 二次开发 marker: packages[""] too');
+  }
   assert.equal(PROTOCOL_VERSION, 1, 'the wire protocol number is separate from the release version');
   assert.equal(pkg.private, true, 'never published to npm');
 });
@@ -34,7 +46,7 @@ test('CHANGELOG.md opens with the release version, and the README links it', () 
     const num = (v) => v.split(/[.-]/).slice(0, 3).map(Number);
     const [a, b] = [num(first[1]), num(APP_VERSION)];
     assert.ok(a[0] < b[0] || (a[0] === b[0] && (a[1] < b[1] || (a[1] === b[1] && a[2] < b[2]))), `the newest entry ${first[1]} precedes ${APP_VERSION}`);
-  } else assert.equal(first[1], APP_VERSION, 'the newest entry is the current version');
+  } else assert.equal(first[1], APP_VERSION.replace(/-.*$/, ''), 'the newest entry is the current version (its numeric core; the -E marker is noted in the entry\'s own note)');
   assert.match(log, /^## 0\.1\.0 — 2026-10-02/m, 'the first public release stays listed');
   const readme = read('README.md');
   assert.match(readme, /\[CHANGELOG\.md\]\(CHANGELOG\.md\)/);
