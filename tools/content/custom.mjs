@@ -11,7 +11,8 @@
 //     the 特质 of its members, and 珊比's promotion out of the 自选 pool into a T4 shop chess.
 //   · 克莱门莎 (char_4231_clemnt) — a 自选 (DIY) operator the maintainer turned into a visible T5 盟约/商店棋 with the
 //     official 特质 garrison_161_a/_b (Codex, 2026-10-12). The official tables list neither her chess nor the trait,
-//     so without this file every rebuild of data/ drops an operator the maintainer deliberately added.
+//     so without this file every rebuild of data/ drops an operator the maintainer deliberately added. Her design
+//     fields are an EXPLICIT OVERRIDE, not add-if-absent — see the 克莱门莎 block header near the end of this file.
 //
 // tools/build-data.mjs `applyCustom(ctx)` merges this module into the loaded official tables BEFORE the builders run:
 //   bond / modeBond                   → act.bondInfoDict / ac.bondInfoDict            (buildBonds reads both)
@@ -33,36 +34,49 @@
 //                                       replacements above leave unreferenced but the dataset must keep)
 //
 // ADD-IF-ABSENT is the rule for every table: an id the official table already has wins, this file's row is dropped, and
-// the build reports a `custom:` warning — so a future source update (or an official 克莱门莎 row) takes over by itself.
-// The character table is the one exception in shape, and gets its own rule: `characters` is a ROW add-if-absent plus
+// the build reports a `custom:` warning — so a future source update takes over by itself. Every rule below therefore
+// describes what happens when the official 0.2.5 tables DO carry the row: the row-level content stays THEIRS, and only
+// the fields this file lists explicitly are forced. (For 克莱门莎 as the rows stand today the official chess tables carry
+// nothing at all, so the add-if-absent path inserts this file's row whole; the override is what keeps her design fields
+// in force the day an official row appears — the two paths must ship the same values.)
+//
+// The character table is an exception in shape and gets its own rule: `characters` is a ROW add-if-absent plus
 // FIELD-level corrections of an existing row (克莱门莎's `appellation`, which upstream spells "Clementia"), each
 // reported as `custom: character … replaced …`.
 //
-// Three arrays ON rows the official table already has cannot be expressed as add-if-absent at all; they are the only
-// places this file ever modifies an official row, and all three are documented design decisions:
+// Two arrays ON rows the official table already has cannot be expressed as add-if-absent at all; they are among the
+// places this file modifies an official row, and both are documented design decisions:
 //   `chessBonds`      adds 巴别塔 to the official row's `bondIds` — a UNION, it never removes a bond.
 //   `bondChessIds`    adds the fiat chess to an official bond's `chessIdList` — a UNION too, the member-list mirror
 //                     of `chessBonds` (the build derives data/bonds.json `members` from it and the bond panel lists
 //                     its 成员 from those).
-//   `chessGarrisons`  REPLACES the official row's `garrisonIds` — the design overrides 华法琳's trait text
-//                     (docs/research/15-babel-bond.md §2 「与现有数据的差异」: the per-battle cap is 4 / 8, the data's is
-//                     7 / 14), so her `garrison_72_a` / `_b` give way to this file's pair rather than being kept alongside
-//                     it (keeping both would double-count the layer gain).
+//   `chessGarrisons` / `elementChessGarrisons` REPLACE the official row's `garrisonIds`. `chessGarrisons` is EMPTY
+//                     (华法琳's withdrawn 4/8 cap override); the live users are 菲莱 / 烛煌 / 妮芙, whose official
+//                     `garrisonIds` give way to this file's extended pair.
 //
-// ONE SCALAR on an official row is a fourth such field, and it needs no mechanism at all: the chess's DEFAULT SKILL
-// (`defaultSkillIndex`, mirrored into `backupCharSkillIndex`). The maintainer's ruling of 2026-10-13 picks one per chess
-// of a THIRTEEN-operator batch; the ten 自研 pairs state it in their own rows (the `skill` field of `members`, 珊比's,
-// 克莱门莎's and 可露希尔's), while the three OFFICIAL chess of the batch (华法琳 / 伊内丝 / 魔王) are NOT listed here
-// because the official rows already carry the wanted index (0 / 1 / 2) — this file extends their `bondIds` only. A
-// future official update that moved one of those indices would therefore be a silent change of the shipped default,
-// and would have to be dealt with by a deliberate override (see the 棋子 block header for the values checked).
+// The chess's DEFAULT SKILL (`defaultSkillIndex`, mirrored into `backupCharSkillIndex`) is a scalar on the shop row the
+// same way: the ten 自研 pairs of the maintainer's 2026-10-13 batch state it in their own rows (the `skill` field of
+// `members`, 珊比's, 克莱门莎's and 可露希尔's), while the three OFFICIAL chess of the batch (华法琳 / 伊内丝 / 魔王) are
+// NOT listed because the official rows already carry the wanted index (0 / 1 / 2) — this file extends their `bondIds`
+// only. A future official update that moved one of those indices would silently change the shipped default; that is a
+// deliberate override when it is wanted (see `clemensa.design` and `applyClemensaDesign` for the shape).
+//
+// EXPLICIT DESIGN OVERRIDE — the one mechanism that beats an official row field for field is `clemensa.design` (below):
+// it names the exact final `bondIds`, `garrisonIds`, `defaultSkillIndex` and `backupCharSkillIndex` and the build forces
+// them onto whichever row ends up in the table, reporting `custom: 克莱门莎 … design override …` per field. It exists
+// because the official 0.2.5 client data DOES ship 克莱门莎's character row (`char_4231_clemnt`, `appellation`
+// "Clementia") and could ship her chess rows at any source update; the maintainer's ruling of 2026-10-13 is that her
+// design fields win over the official ones, as a deliberate deviation from the official mode (AGENTS.md 「Deliberate
+// deviations from the official mode are the maintainer's decision only」; docs/DATA.md §19.6, docs/research/17-element-bond.md
+// §5 item 10).
 //
 // REMOVING a bond is impossible through either union table, and only a FIAT chess of this module (one whose whole row
 // this file owns: `chess` / `elementChess` / `clemensa.chess`) ever needs it. Such a chess states its **exact final
-// `bondIds`** in its own record — there is no union to defeat, and the list is what `buildChess` copies verbatim into
+// `bondIds`** on its record — there is no union to defeat, and the list is what `buildChess` copies verbatim into
 // data/chess.json `bonds` (`tools/build-data.mjs` line `bonds: [...(cd.bondIds || [])]`) — while `chessBonds` /
 // `elementChessBonds` simply do NOT name it. That is how 克莱门莎 left 不屈 (indomShip) with the maintainer's ruling of
-// 2026-10-12: her two records below read `['egirShip', 'swiftShip', 'elementShip']` exactly, `bondChessIds` no longer
+// 2026-10-12: `clemensa.design.bondIds` below reads `['egirShip', 'swiftShip', 'elementShip']` exactly (and
+// `applyClemensaDesign` forces it onto her row whether that row is ours or the official one), `bondChessIds` no longer
 // lists her under 不屈, and no union entry mentions her.
 //
 // DATA ONLY. The simulation of the bond (一档 编制 / 二档 指挥) is written in server/sim/ by the maintainer separately;
@@ -1157,7 +1171,9 @@ const elementChessGarrisons = {
   chess_char_3_06_a: ['garrison_175_a'], chess_char_3_06_b: ['garrison_175_b'],   // 菲莱
   chess_char_5_03_a: ['garrison_176_a'], chess_char_5_03_b: ['garrison_176_b'],   // 烛煌
   chess_char_5_22_a: ['garrison_177_a'], chess_char_5_22_b: ['garrison_177_b'],   // 妮芙 (T6 hidden form shares the pair)
-  chess_char_5_clemnt_a: ['garrison_178_a'], chess_char_5_clemnt_b: ['garrison_178_b'],   // 克莱门莎
+  // 克莱门莎 is NOT listed here. Her `garrisonIds` are one of her four design fields and are stated in
+  // `clemensa.chess` / forced by `clemensa.design` below (`applyClemensaDesign`, which runs after this REPLACE table) —
+  // so the value here would be overwritten anyway, and stating it twice would invite the two copies to drift apart.
 };
 
 // ===== mode overlay ==============================================================================================
@@ -1173,38 +1189,59 @@ const modeBonds = { active: [BABEL, ELEMENT] };
 //
 // 克莱门莎 (char_4231_clemnt) was a 自选 (DIY) operator; the maintainer turned her into a 盟约 operator — a visible
 // T5 shop chess with the official 特质 garrison_161_a/_b — with Codex on 2026-10-12. That decision is FIAT content of
-// exactly the same standing as 巴别塔 above: it exists in no build source (the official charChessDataDict has no
-// `clemnt`, and data/*.json was produced by a build that carried her as a local patch which has since been reverted),
-// so WITHOUT this file every rebuild of data/ silently drops an operator the maintainer deliberately added. Keep these
-// three records maintained here for good — do NOT "fix them up": they are the committed records of data/chess.json and
-// data/garrisons.json, field for field (bonds order, status, identifier, shopSortId, backup, upgradeNum/upgradeChessId
-// included), and the reviewer can diff them against it.
+// exactly the same standing as 巴别塔 above: no build source carries her chess, so WITHOUT this file every rebuild of
+// data/ silently drops an operator the maintainer deliberately added. Keep these records maintained here for good — do
+// NOT "fix them up": they are the committed records of data/chess.json and data/garrisons.json, field for field (status,
+// identifier, shopSortId, backup, upgradeNum/upgradeChessId included), and the reviewer can diff them against it.
 //
-// Add-if-absent as everywhere else: if a future official table (or a source update) does list her, the official row
-// wins and the build reports a `custom:` warning, so this copy can then be deleted. Until that day it is the only
-// thing keeping her in the shop.
+// WHAT THE OFFICIAL TABLES REALLY CARRY (checked against origin/master 0.2.5, 2026-10-13). The official client data
+// DOES ship her CHARACTER (`character_table.char_4231_clemnt`, `appellation` "Clementia") and her 盟约策略
+// (`band_clementia`), but — as of 0.2.5 — NOTHING chess-related: no `charChessDataDict` / `charShopChessDatas` /
+// `chessNormalIdLookupDict` / `garrisonDataDict` row of any kind, under the id `chess_char_5_clemnt_a/_b` or anywhere
+// else. So today the add-if-absent path inserts the records below whole, and the ONLY field of an official row this file
+// overrides is that character `appellation` (through `characters`). The design override exists for the day the source
+// update ships her chess: her four design fields must keep winning over the official ones.
 //
-// `descFlattened` / `bb` / `bbStr` of the garrisons are the committed data/garrisons.json record (its desc/descRaw);
-// applyCustom() rebuilds the raw blackboard list the official garrisonDataDict holds — same values, one shape away.
-// `owners` is an OUTPUT of the current build (the chess that carry the trait), never an input.
+// EXPLICIT OVERRIDE — `design` below is the AUTHORITY for the four fields. `applyClemensaDesign`
+// (tools/build-data.mjs) runs AFTER every other custom merge — after `chessGarrisons` / `elementChessGarrisons` REPLACE
+// their lists, after the `chessBonds` unions — and forces them onto whichever row is in the table, whether this module
+// inserted it or the official tables supplied it.
 //
-// `bondIds` is the EXACT final list, the maintainer's ruling of 2026-10-12: 阿戈尔 / 迅捷 / 元素. It is written here
-// and nowhere else — 不屈 is gone (no union table may name her, or it would add it back; see the header's REMOVING
-// note) and 元素 is NOT unioned on by `elementChessBonds`. data/chess.json `bonds` copies this array verbatim, so the
-// record stays field for field with the dataset as this block promises.
+// The `chess` records below restate `bondIds` / `garrisonIds` with the SAME values, and the `shopRows` row its two skill
+// indices, because those records are what a future reader (and the `charChessDataDict` row itself) reads as the committed
+// shape: the override must never be the only place a design value is written, or the explicit statement and the enforced
+// one could drift apart. A normal build therefore reports only the overrides that actually beat something — today none of
+// the four fields, since the official tables carry no 克莱门莎 chess row at all.
+//
+//   bondIds        EXACT final list, the maintainer's ruling of 2026-10-12: 阿戈尔 / 迅捷 / 元素, order included.
+//                  不屈 is gone — no union table may name her, or it would add it back (header's REMOVING note) — and
+//                  元素 is NOT unioned on by `elementChessBonds` (that union could only ADD, never remove): it is stated
+//                  right here and copied verbatim into data/chess.json `bonds`.
+//   garrisonIds    克莱门莎's 元素 特质, docs/research/17-element-bond.md §2 (`[ASSUMED] REPLACED, not extended`): the
+//                  committed pair `garrison_161_a/_b` (每击倒 1 名敌人 → 【阿戈尔】【迅捷】【不屈】+2 / +3, no per-battle
+//                  cap) gives way to `garrison_178_a/_b` (每击倒 3 名 → 【阿戈尔】【迅捷】【元素】+2 / +4, cap +14 / +28,
+//                  `check_cnt` 3 + `max_add_count_per_battle`). The old pair stays in data/garrisons.json with no owners
+//                  through `garrisonKeep`. Her ids are deliberately NOT in `elementChessGarrisons` above: that REPLACE
+//                  table runs before this override, so stating them there too would only invite the copies to drift.
+//   defaultSkillIndex / backupCharSkillIndex
+//                  index 1 — S2 「风暴潮」, the maintainer's 2026-10-13 default-skill batch. Both must carry it: a PRESET
+//                  chess is its own stand-in, so `checkUnitFormParity` (tools/build-data.mjs) fails the build when
+//                  `backupCharSkillIndex` disagrees with the chess's resolved default skill. The 精英 row `_b` needs no
+//                  shop row of its own (buildChess resolves it through `normalLookup` → the `_a` row) but states the
+//                  index here all the same, so both forms of the pair read the same ruling.
 const clemensa = {
   chess: {
     chess_char_5_clemnt_a: {
       chessId: 'chess_char_5_clemnt_a', identifier: 129, isGolden: false,
       status: { evolvePhase: 'PHASE_2', charLevel: 1, skillLevel: 4, favorPoint: 0, equipLevel: 0 },
       upgradeChessId: 'chess_char_5_clemnt_b', upgradeNum: 3,
-      bondIds: ['egirShip', 'swiftShip', 'elementShip'], garrisonIds: ['garrison_161_a'],
+      bondIds: ['egirShip', 'swiftShip', 'elementShip'], garrisonIds: ['garrison_178_a'],
     },
     chess_char_5_clemnt_b: {
       chessId: 'chess_char_5_clemnt_b', identifier: 262, isGolden: true,
       status: { evolvePhase: 'PHASE_2', charLevel: 60, skillLevel: 7, favorPoint: 0, equipLevel: 0 },
       upgradeChessId: null, upgradeNum: 0,
-      bondIds: ['egirShip', 'swiftShip', 'elementShip'], garrisonIds: ['garrison_161_b'],
+      bondIds: ['egirShip', 'swiftShip', 'elementShip'], garrisonIds: ['garrison_178_b'],
     },
   },
   // The charShopChessDatas row of her NORMAL id (a build output has no raw shop row; these are the fields buildChess
@@ -1219,6 +1256,25 @@ const clemensa = {
     },
   },
   normalLookup: { chess_char_5_clemnt_b: 'chess_char_5_clemnt_a' },
+  // THE DESIGN FIELDS — the authority (see the block header). One entry per chess id; every field listed is forced onto
+  // that chess's `charChessDataDict` row, and every field listed under `shop` onto the `charShopChessDatas` row the
+  // chess resolves through (`chessNormalIdLookupDict[id] || id`, so the `_b` elite reads the `_a` row), by
+  // `applyClemensaDesign`. Missing row ⇒ `custom:` warning; a differing official value ⇒ `custom: … design override …`.
+  design: {
+    chess_char_5_clemnt_a: {
+      bondIds: ['egirShip', 'swiftShip', 'elementShip'],
+      garrisonIds: ['garrison_178_a'],
+      shop: { defaultSkillIndex: 1, backupCharSkillIndex: 1 },
+    },
+    chess_char_5_clemnt_b: {
+      bondIds: ['egirShip', 'swiftShip', 'elementShip'],
+      garrisonIds: ['garrison_178_b'],
+      shop: { defaultSkillIndex: 1, backupCharSkillIndex: 1 },
+    },
+  },
+  // `desc` / `descRaw` below are the committed data/garrisons.json text; `bb` / `bbStr` are its flattened blackboard,
+  // which applyCustom() turns back into the raw list the official garrisonDataDict holds — same values, one shape away.
+  // `owners` is an OUTPUT of the current build (the chess that carry the trait), never an input.
   garrisons: {
     garrison_161_a: {
       garrisonId: 'garrison_161_a',

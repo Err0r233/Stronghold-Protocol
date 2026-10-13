@@ -39,8 +39,8 @@ test('diyPool: tier 5 = 15 prototypes + 65 owned 6★, tier 6 = 9 + 65; no prese
   const p5 = diyPool(5, { data: DATA }), p6 = diyPool(6, { data: DATA });
   assert.deepEqual(p5, [...RESERVES5, ...ELITES, ...ownedPool]);
   assert.deepEqual(p6, [...ELITES, ...ownedPool]);
-  // 81 / 75 = the 15 + 9 prototypes plus the 66 owned 6★ (the official 71 less the 5 the maintainer promoted to shop
-  // chess with the 自研 巴别塔 bond, tools/content/custom.mjs)
+  // 80 / 74 = the 15 + 9 prototypes plus the 65 owned 6★ (the official 71 less the six the maintainer promoted to shop
+  // chess with the 自研 巴别塔 and 元素 bonds, tools/content/custom.mjs)
   assert.deepEqual([p5.length, p6.length], [80, 74]);
   const roster = new Set(Object.values(chess).map((c) => c.charId).filter(Boolean));
   for (const id of p5) assert.ok(!roster.has(id) && !COLLAB.includes(id), id);

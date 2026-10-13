@@ -302,7 +302,8 @@ test('harness battle with injected kits: non-default skill via the view uses the
 
 test('tools/kit-coverage: every visible chess and each selectable skill, defaults hand-authored', { skip }, () => {
   const rep = kitCoverage();
-  // 122 = the official 113 visible non-DIY chess + the 8 members of the 自研 巴别塔 bond (tools/content/custom.mjs).
+  // 122 = the official 112 visible non-DIY chess + the 8 members of the 自研 巴别塔 bond + 克莱门莎 and 珊比
+  // (tools/content/custom.mjs).
   assert.equal(rep.summary.chess, 122);
   assert.equal(rep.chess.length, 122);
   for (const r of rep.chess) {

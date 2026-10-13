@@ -1,9 +1,9 @@
 // test/backups.test.js — the data of 补位 (stand-ins) and 自选 (DIY slots): chess.json `backup` and data/backups.json
 // (docs/DATA.md §18; tools/build-data.mjs buildBackups; shared/standIn.js, shared/diy.js). These tests pin the data the
-// gameplay reads: the 142 base chess and their types (the official 134 + the 8 members of the 自研 巴别塔 bond,
-// tools/content/custom.mjs), the 17 stand-in characters and their forms, every NORMAL chess resolving to its stand-in,
-// the 4 DIY slots, the legal picks (the 66 owned 6★ with their forms and summons, the prototypes and their locked
-// selections) and the faction bonds.
+// gameplay reads: the 143 base chess and their types (the official 133 + the 8 members of the 自研 巴别塔 bond and
+// the two promoted operators, tools/content/custom.mjs), the 17 stand-in characters and their forms, every NORMAL chess
+// resolving to its stand-in, the 4 DIY slots, the legal picks (the 65 owned 6★ with their forms and summons, the
+// prototypes and their locked selections) and the faction bonds.
 // With the official-data cache (.cache/gamedata) the backup fields, the stand-in numbers and the bond derivation are
 // re-derived from the raw tables.
 // Run: node --test test/backups.test.js

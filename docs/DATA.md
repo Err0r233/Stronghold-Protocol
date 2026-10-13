@@ -112,7 +112,7 @@ Top level: `{ season, seasonName, modes, economy, lpCapPerRound, bossOvertimeAft
 | `poolCopies[tier]` + `poolCopiesOverrides` | 12/14/18/16/8/5 plus measured low-tier identity exceptions (DESIGN §29.8) | single-player copies; `coopPoolMultiplier: 2` doubles shared operators, not private DIY stock |
 | `itemPoolCopies[tier]` + `itemPoolCopiesOverrides` | 4/6/7/8/7/3 plus eight measured exceptions (DESIGN §29.8) | shared shop-equipment ownership: normal 1, upgraded 2; non-shop effect-only equipment unlimited |
 | `goldenCopies`, `mergeCount`, `mergeCountOverrides`, `itemMergeCount` | `3`, `3`, `{"chess_char_2_11_a":2}` (风丸), `2` | |
-| `rewardOffer` | `{"count":3,"tierOffset":1,"maxTier":6,"price":0,…}` | merge reward: 3 **different** free chess of tier `min(shopLevel+1,6)` (a short tier tops up from the tier below; `PlayerState.pushRewardOffer`, user playtest #6 item 19) |
+| `rewardOffer` | `{"count":3,"tierOffset":1,"maxTier":6,"price":0,…}` | merge reward: 3 **different** free chess of tier `min(shopLevel+1,6)` (a short tier tops up from the tier below; the player's stocked 自选 of that tier joins the roll, DESIGN §30.23; `PlayerState.pushRewardOffer`, user playtest #6 item 19) |
 | `handFillOrder` | `"rightToLeft"` | |
 | `shopOdds` | `{"model":"copyWeighted",…}` | [ASSUMED] roll model |
 | `borrowCount`, `fallbackBondId`, `defaultBandId`, `defaultStartLp` | `20`, `"emptyShip"`, `"band_bldsk"`, `28` | |
@@ -141,9 +141,9 @@ Top level: `{ season, seasonName, modes, economy, lpCapPerRound, bossOvertimeAft
 
 ---
 
-## 2. `chess.json` — `{ [chessId]: Chess }` (284 = 142 normal + 142 golden)
+## 2. `chess.json` — `{ [chessId]: Chess }` (286 = 143 normal + 143 golden)
 
-121 are `visible` (non-hidden, non-DIY) normal chess: per tier 18/18/21/22/22/20. 17 are `isHidden` (retired
+122 are `visible` (non-hidden, non-DIY) normal chess: per tier 18/18/21/23/22/20. 17 are `isHidden` (retired
 上半 entries or effect-only such as `chess_char_1_15_a` 盟约·辅助干员 from band Pith); 4 are DIY (甄选) slots.
 
 | Field | Example | Meaning |
@@ -303,7 +303,7 @@ full-rank build from the others; the build fails unless `atRank` rebuilds every 
 | `members[]`, `visibleMembers[]` | `["chess_char_1_06_a",…]` | base (normal) chessIds incl. hidden / only visible |
 | `spec` | `{"tiers":[{"need":"…","effect":"…"}],"formulas":{…},"layerGain":"…",…}` | research 02 implementer spec (null without research) |
 
-## 4. `garrisons.json` — `{ [garrisonId]: Garrison }` (271; 46 distinct `effectKey`s)
+## 4. `garrisons.json` — `{ [garrisonId]: Garrison }` (277; 46 distinct `effectKey`s)
 
 | Field | Example | Meaning |
 |---|---|---|
@@ -631,9 +631,9 @@ Glyph legend (`rows`):
 
 ## 16. Counts (current build)
 
-`chess 284 (121 visible; 307 selectable skills over the visible chess, 185 module choices over 138 goldens; 83 PRESET / 55 NORMAL / 4 DIY base chess)`, `bonds 24`, `garrisons 271 (46 effect keys)`, `items 121`, `bands 40`, `effects 369`,
+`chess 286 (122 visible; 310 selectable skills over the visible chess, 196 module choices over 139 non-DIY goldens; 84 PRESET / 55 NORMAL / 4 DIY base chess)`, `bonds 25`, `garrisons 277 (46 effect keys)`, `items 121`, `bands 40`, `effects 370`,
 `enemies 249`, `factions 67 entries`, `waves 38`, `stages 13 (8 active)`, `bosses 10`, `tokens 24`, `choice events 109`,
-`bounty cards 129`, `tactic cards 44 (43 official + 凯尔希的盟誓 §19)`, `backups: 83 units (17 stand-ins, 66 owned-6★ picks; 241 forms), 36 自选 summons, 4 DIY slots, 15 / 9 prototype picks (tier 5 / 6), 66 owned-6★ picks (7 collab operators excluded)`, potential (§2.3): `272 chess records, 198 backup forms with potDown; 460 + 378 + 19 chained talent entries (chess, backups, tokens)`.
+`bounty cards 129`, `tactic cards 44 (43 official + 凯尔希的盟誓 §19)`, `backups: 82 units (17 stand-ins, 65 owned-6★ picks; 238 forms), 36 自选 summons, 4 DIY slots, 15 / 9 prototype picks (tier 5 / 6), 65 owned-6★ picks (7 collab operators excluded)`, potential (§2.3): `274 chess records, 195 backup forms with potDown; 297 + 249 + 19 chained talent entries (chess, backups, tokens)`.
 
 ## 17. Integrity guarantees (checked by the builder and `test/data.test.js`)
 
@@ -672,12 +672,13 @@ prototype. Built by `tools/build-data.mjs buildBackups`; `shared/standIn.js` com
 `shared/diy.js` adds the 自选 rules on top. The sim fields both (docs/SIM.md §12). Played since 0.2.0: the player fills
 the four slots on the 自选编队 tab (`room.diy { picks }`, docs/PLAYING.md §3; shared/protocol.js checkDiyPicks keeps the
 legal picks), the match takes the picks the seat had at its start (`PlayerState.diy`), and each slotted piece is sold in
-that player's shop only — its own stock (the tier's pool copies, 8 / 5 [ASSUMED]), from the 调度中心 level `shopLevel`,
-none when every bond of it is banned this match — and is the operator for every rule of that player (its data view:
+that player's shop only — its own stock (the tier's pool copies, 8 / 5 [ASSUMED]). The ordinary shop draws it from the
+调度中心 level `shopLevel`; the promotion reward draws 自选 of the reward tier, one shop level earlier (DESIGN §30.23).
+It has no stock when every bond of it is banned this match, and it is the operator for every rule of that player (its data view:
 server/match/player/diy.js, docs/META.md §3). The rules in the data (activity_table act2autochess `charShopChessDatas`; PRTS 卫戍协议, 卫戍协议：盟约
 下半/PRTS盟约记录):
 
-- PRESET (74, 特许干员) always fields the real operator (`backup.charId` = itself); NORMAL (55) names one of 17 stand-ins —
+- PRESET (84, 特许干员) always fields the real operator (`backup.charId` = itself); NORMAL (55) names one of 17 stand-ins —
   the 4★ 预备干员 `char_600–607`, the 6★ `char_608–615` and 领主·Sharp `char_617` (the "其它分支"); DIY (4) has none.
 - A stand-in keeps the chess's bonds, 特质, tier, price, merge and status (the elite form uses the same backup at the
   elite row) and fights as `backup.charId` at that status with skill `backup.skillIndex` (fixed by the chess: the same
@@ -685,13 +686,13 @@ server/match/player/diy.js, docs/META.md §3). The rules in the data (activity_t
   even their elite form has none) and the row's potential (`potRank` 0 on all 55) — moot: the 17 原型干员 have no
   potential ranks, and a stand-in takes neither the player's potential nor the 自持有 练度 (0.2.2).
 
-`units[charId]` — first the 17 stand-ins, then the 66 owned-6★ 自选 picks (`diy.ownedPool`); no unit for a PRESET or DIY
+`units[charId]` — first the 17 stand-ins, then the 65 owned-6★ 自选 picks (`diy.ownedPool`); no unit for a PRESET or DIY
 chess:
 
 | Field | Example (`char_611_acnipe`) | Meaning |
 |---|---|---|
 | `charId`, `name`, `appellation`, `rarity`, `profession`, `subProfessionId`, `subProfessionName`, `position`, `nationId`, `isNotObtainable` | `"char_611_acnipe"`, `"Stormeye"`, `"Stormeye"`, `6`, `"SNIPER"`, `"fastshot"`, `"速射手"`, `"RANGED"`, `null`, `true` | as on a chess record (`isNotObtainable` false for the owned picks) |
-| `assets` | `{"avatar":"char_611_acnipe","avatarGolden":"char_611_acnipe","portrait":"char_611_acnipe_1","portraitGolden":"char_611_acnipe_1","spine":"char_611_acnipe","subProfIcon":"sub_fastshot_icon"}` | art ids (URLs in `data/assets.json`, which carries all 89 — the owned picks since 0.2.0, ASSETS.md); the elite form takes the E2 art when it exists — of the stand-ins only 领主·Sharp has it, every owned pick does |
+| `assets` | `{"avatar":"char_611_acnipe","avatarGolden":"char_611_acnipe","portrait":"char_611_acnipe_1","portraitGolden":"char_611_acnipe_1","spine":"char_611_acnipe","subProfIcon":"sub_fastshot_icon"}` | art ids (URLs in `data/assets.json`, which carries all 82 — the 17 stand-ins and the 65 owned picks, ASSETS.md); the elite form takes the E2 art when it exists — of the stand-ins only 领主·Sharp has it, every owned pick does |
 | `moduleNames` | `{"uniequip_001_acnipe":{"name":"Stormeye证章","typeName":"ORIGINAL"},"uniequip_002_acnipe":{"name":"Stormeye证章","typeName":"MAR-X"}}` | every module of the character (a composed record names its module on the normal form too) |
 | `standsIn[]` | `["chess_char_3_21_a","chess_char_4_02_a","chess_char_5_18_a","chess_char_5_22_a","chess_char_6_01_a","chess_char_6_05_a"]` | the NORMAL base chess it replaces (`[]` for an owned pick) |
 | `forms[statusKey]` | keys `"2/1/4/0"`, `"2/60/7/1"`, `"2/60/7/3"` | the character at every status it fights at — of the chess it stands in for and of the DIY slots it may fill (`statusKey(status)` = `phase/level/skillLevel/equipLevel`): 3 forms per 6★ (an owned pick: exactly the three DIY slot statuses — E2 Lv1 skill rank 4 without a module, E2 Lv60 rank 7 with every module at stage 1 and at stage 3), 2 per 4★ |
@@ -750,7 +751,7 @@ operator (自选)").
 | `slots[slotId]` | `{"tier":5,"goldenId":"chess_char_5_diy1_b","shopLevel":5,"requirement":"TIER_6"}` | the four DIY chess `chess_char_5_diy1/2_a`, `chess_char_6_diy1/2_a` (chess.json: price 4, sell 1, `diyRequirement`, empty `bonds` / `garrisonIds`); `shopLevel` = the 调度中心 level whose `shopLevelDisplayDataDict.charChessDiySlotIdList` lists the slot |
 | `prototypes[tier]` | `{"5":[…15],"6":[…9]}` | the legal prototype picks: the nine 6★ at both tiers, at tier 5 also the six 4★ that are not 先锋 / 特种 ("第5阶可额外从6名四星原型干员（先锋、特种职业除外）中选取"; `DIY_EXTRA_PROTOTYPES`). A prototype may fill a tier-5 and a tier-6 slot ("原型干员可于5、6阶之间重复选取") |
 | `locked[tier][charId]` | `{"skillIndex":2,"uniEquipId":"uniequip_002_acguad","from":["chess_char_5_06_a","chess_char_5_13_a"]}` | the skill and module a prototype carries in a slot of that tier — "技能携带规则与系统补位时一致" (PRTS 卫戍协议), read as [ASSUMED] (the owner's decision of 2026-10-05) the selection of its 补位 rows at that tier (`from`): the eight 6★ elites S3 with their own module, 领主·Sharp S1, the reserves S3 without a module; 预备干员-医疗 has no tier-5 row: S3 by analogy (`from` `[]`, `DIY_PROTOTYPE_FALLBACK_SKILL`) |
-| `ownedPool[]` | 66 charIds | the owned 6★ a player may slot: obtainable, rarity = the requirement, and no chess names it — hidden chess included ("不可甄选加入已在名单中的固定干员"); each at most once per roster ("玩家已拥有干员不可重复选取"). Not the collab operators (`excluded`) |
+| `ownedPool[]` | 65 charIds | the owned 6★ a player may slot: obtainable, rarity = the requirement, and no chess names it — hidden chess included ("不可甄选加入已在名单中的固定干员"); each at most once per roster ("玩家已拥有干员不可重复选取"). Not the collab operators (`excluded`) |
 | `excluded[]` | `["char_456_ash","char_1029_yato2","char_1048_orchd2","char_4123_ela","char_4141_marcil","char_4182_oblvns","char_4217_makoto"]` | the 7 obtainable 6★ outside the pool that come from a 联动寻访 — a collab team in `mainPower` / `subPower` (`DIY_EXCLUDED_TEAMS`: rainbow, action4, mujica, sees, laios — 灰烬, 麒麟R夜刀, 艾拉, 玛露西尔, 丰川祥子, 结城理) or a collab series in `displayNumber` (`DIY_EXCLUDED_NUMBER_PREFIXES` MH / RS / AM / PS / DD — also 焰狐龙梓兰 MH05, whose team reserve6 names no collab): left out of the data and the pool by the owner's decision of 2026-10-05 (copyright); the excel does not exclude them |
 | `operators[charId]` | `{"name":"煌","rarity":6,"profession":"WARRIOR","subProfessionId":"centurion","obtainable":true,"powers":["rhodes","elite","yan","victoria"],"bonds":["yanShip","victoriaShip"]}` | every pick (owned pool + prototypes): `powers` = the `nationId` / `groupId` / `teamId` of `mainPower` and of every `subPower` (隐藏势力); `bonds` = the core bonds whose `powerIdList` meets them — one or several — else `economy.fallbackBondId` 协防干员 ("甄选加入的干员会根据其实际阵营所属分配核心盟约，若没有可匹配的则改为分配协防干员盟约"); every prototype gets `["emptyShip"]` |
 
@@ -779,6 +780,10 @@ the maintainer's decision only」 — and every block in it names the design sec
 克莱门莎). `node tools/build-data.mjs --no-research` skips the whole layer, which is how a rebuild from the official
 tables alone is reproduced.
 
+One block goes further than adding content: 克莱门莎's four ruled fields (§19.9) are an **explicit override of the
+official mode** — the maintainer's 裁决 (a) of 2026-10-13, applied after every other merge so that an official row
+cannot displace them. Everything else here yields to the official table (add-if-absent).
+
 Three blocks of equal standing:
 
 - **巴别塔** — the 自研 core bond (`babelShip`, §3: the 24th bond, `isCore`, `powerIdList ['babel']`, `identifier` 24,
@@ -798,11 +803,12 @@ Three blocks of equal standing:
   unreferenced, and **珊比's promotion** out of the 自选 pool into a visible T4 PRESET shop chess
   (`chess_char_4_27_a/_b`, `elementChess`).
 - **克莱门莎** (`char_4231_clemnt`) — a 自选 operator the maintainer turned into a visible T5 shop chess with the
-  official 特质 `garrison_161_a/_b` (Codex, 2026-10-12). Her three records are the committed `data/chess.json` /
+  official 特质 `garrison_161_a/_b` (Codex, 2026-10-12). Her records are the committed `data/chess.json` /
   `data/garrisons.json` records field for field, so a rebuild cannot silently drop an operator the shop shipped; the
   same rule is why her `bondIds` states her exact final list instead of taking a union entry (§19.7). Her
   trait pair was later replaced by `garrison_178_a/_b` (the 元素 design, §19.5); the committed pair stays in the
-  dataset through `garrisonKeep`.
+  dataset through `garrisonKeep`. **Her four ruled fields are an EXPLICIT OVERRIDE of the official mode** — the one
+  block that deliberately beats an official row rather than yielding to it: §19.9.
 
 ### 19.1 The 11 特质 of the 巴别塔 members (final, 2026-10-12)
 
@@ -893,6 +899,7 @@ The design (`docs/research/17-element-bond.md`) is delivered as a `element`-pref
 | `elementChess` / `elementShopRows` / `elementNormalLookup` | `charChessDataDict` / `charShopChessDatas` / `chessNormalIdLookupDict` | `buildChess` (珊比's promotion) |
 | `elementChessBonds` | `charChessDataDict[*].bondIds` (UNION) | `buildChess` |
 | `elementChessGarrisons` | `charChessDataDict[*].garrisonIds` (REPLACE) | `buildChess` |
+| `clemensa.design` | the same two chess tables, per field (forced **last**) | `buildChess` — 克莱门莎's four ruled fields only, §19.9 |
 | `garrisonKeep` | `data/garrisons.json` (read directly by `buildGarrisons`) | the official rows a replacement leaves unreferenced |
 
 The bond: 附加 (non-core), `countMode BOARD`, thresholds `[2, 3]`, `weight` 10, `identifier` 25, icon
@@ -932,22 +939,25 @@ entries and `visibleMembers` seven):
 | 烛煌 | `chess_char_5_03_a/_b` | `bonds` += `elementShip`; → `garrison_176_a/_b` (炎/维多利亚 +5/+10 「无需激活盟约」 + 元素) |
 | 妮芙 | `chess_char_5_22_a/_b` (and `6_10_a/_b`) | `bonds` += `elementShip`; → `garrison_177_a/_b` (整备区每 1 个干员 → 迅捷 + 元素 +2/+4); her hidden form keeps `garrison_56_a/_b` |
 | 余 | `chess_char_6_03_a/_b` | `bonds` += `elementShip` only — 特质 unchanged (`garrison_37_a/_b`, still owned) |
-| 克莱门莎 | `chess_char_5_clemnt_a/_b` | `bonds` **= `['egirShip', 'swiftShip', 'elementShip']` exactly** (her fiat records state the final list — 不屈 removed, 元素 kept, §19.7's REMOVING note and the maintainer's ruling of 2026-10-12); `garrisonIds` → `garrison_178_a/_b` — **REPLACES** her committed pair: 每击倒 3 名敌人 → 【阿戈尔】【迅捷】【元素】+2 / +4, 每场战斗至多 +14 / +28 (`check_cnt` 3 + `max_add_count_per_battle`); the old pair had no rhythm and no cap |
+| 克莱门莎 | `chess_char_5_clemnt_a/_b` | `bonds` **= `['egirShip', 'swiftShip', 'elementShip']` exactly** (the final list — 不屈 removed, 元素 kept, §19.7's REMOVING note and the maintainer's ruling of 2026-10-12 — stated on her record and enforced by the `clemensa.design` override, §19.9); `garrisonIds` → `garrison_178_a/_b` — **REPLACES** her committed pair: 每击倒 3 名敌人 → 【阿戈尔】【迅捷】【元素】+2 / +4, 每场战斗至多 +14 / +28 (`check_cnt` 3 + `max_add_count_per_battle`); the old pair had no rhythm and no cap |
 | 塑心 | `chess_char_6_09_a/_b` | `bonds` += `elementShip` only — 特质 unchanged (`garrison_90_a/_b`, still owned) |
 | 珊比 | `chess_char_4_27_a/_b` | **promoted** from a 自选 6★ to a visible T4 PRESET shop chess (`elementChess` / `elementShopRows` / `elementNormalLookup`), `bonds: ['elementShip']`, 特质 `garrison_179_a/_b` (`<获得时>使【元素】层数 +6 / +12（无需激活盟约）`). She leaves `backups.diy.ownedPool` / `units` (a roster operator is never a 自选 pick) and must stay in `tools/assets/extra-operators.json` or a manifest rebuild drops her assets |
 
 `garrisonKeep` is the one new mechanism: `buildGarrisons` emits a row only while some chess names it, so replacing a
 `garrisonIds` entry would silently drop the official row from `data/garrisons.json`. The keep list holds
 `garrison_35_a/_b`, `garrison_43_a/_b` and `garrison_161_a/_b` (妮芙's `garrison_56` needs no entry: her hidden form
-still names it). They come out as orphans (`owners: []`), the shape the dataset already carries for the halves of a
-granting pair (29 / 95 / 96 / 108 / 117_b) — 华法琳's official `garrison_72_a/_b` → `95_a/_b` are the same shape and
-need no keep entry either, since the hidden T5 pair `chess_char_5_04_a/_b` names `72` and `buildGarrisons` reaches `95`
-through it (`garrison_72`'s blackboard `give_garrison_id`; §19.8).
+still names it). 克莱门莎 is the one entry that gets there through both channels at once — `elementChessGarrisons` no
+longer names her (§19.7 below) and `clemensa.design` forces `garrison_178_a/_b` last (§19.9) — so `garrison_161_a/_b`
+is kept for the same reason as the other two. They come out as orphans (`owners: []`), the shape the dataset already
+carries for the halves of a granting pair (29 / 95 / 96 / 108 / 117_b) — 华法琳's official `garrison_72_a/_b` → `95_a/_b`
+are the same shape and need no keep entry either, since the hidden T5 pair `chess_char_5_04_a/_b` names `72` and
+`buildGarrisons` reaches `95` through it (`garrison_72`'s blackboard `give_garrison_id`; §19.8).
 
 **Default skill（默认技能，维护者 2026-10-13）**: two of the seven 元素 members carry one on both records of their pair —
 珊比 `chess_char_4_27_a/_b` → **S2 「慢慢走~」** (index 1) and 克莱门莎 `chess_char_5_clemnt_a/_b` → **S2 「风暴潮」**
 (index 1); the other five keep S1. Their shop rows are this module's own (`elementShopRows` / `clemensa.shopRows`), so
-the index is a field of that row, `defaultSkillIndex` = `backupCharSkillIndex`; the full batch is tabulated in §19.8.
+the index is a field of that row, `defaultSkillIndex` = `backupCharSkillIndex`; the full batch is tabulated in §19.8, and
+克莱门莎's pair is additionally enforced by the `clemensa.design` override (§19.9).
 
 `server/sim/content/garrisons/meta.js` gained a per-bond requirement table with the same change: a fiat row EXTENDS an
 official one by adding a bond to its `bbStr.bond` list, and `requireActiveOf` reads the 「已激活」/「无需激活盟约」 flag
@@ -968,6 +978,8 @@ is already a white glyph on transparency and 54×54, so the step is alpha-crop +
 `bonds.elementShip` records the URL and `fallbackCampLogo: null`; the rebuild (`tools/fetch-assets.mjs
 --asset-source=mirror --add-only`) reports `bonds 25` with no lost key.
 
+### 19.7 The `applyCustom` tables (add-if-absent; the fields that modify an official row)
+
 `tools/build-data.mjs applyCustom(ctx)` merges the module into the loaded official tables **before any builder runs**:
 
 | Module table | Official table it enters | Builder that reads it |
@@ -981,31 +993,38 @@ is already a white glyph on transparency and 54×54, so the step is alpha-crop +
 | `itemEffects`, `itemEffectBuffs` | `act.effectInfoDataDict` / `effectBuffInfoDataDict` | `buildEffects` → `buildItems` (`desc` / `buffs` / `params`) |
 | `itemTraps` | `charTable` | `buildItems` (the item's `name`) and the client item card (`iconId` = `trapId` = the trap charId) |
 | `researchItems` | `ctx.research.items.items` (`docs/research/04-items.json`) | `buildItems` (category / kind / implFormula / flavor / rangeGrid — the optional 04 annotation) |
-| `chess`, `clemensa.chess` | `act.charChessDataDict` | `buildChess` |
-| `shopRows`, `clemensa.shopRows` | `act.charShopChessDatas` | `buildChess` (tier, price row, backup fields) |
-| `normalLookup`, `clemensa.normalLookup` | `act.chessNormalIdLookupDict` | `buildChess` (the elite's base id) |
+| `chess`, `elementChess`, `clemensa.chess` | `act.charChessDataDict` | `buildChess` |
+| `shopRows`, `elementShopRows`, `clemensa.shopRows` | `act.charShopChessDatas` | `buildChess` (tier, price row, backup fields) |
+| `normalLookup`, `elementNormalLookup`, `clemensa.normalLookup` | `act.chessNormalIdLookupDict` | `buildChess` (the elite's base id) |
 | `characters` | `charTable` | every builder that reads a character |
-| `chessBonds` | `act.charChessDataDict[*].bondIds` (union) | `buildChess` |
+| `chessBonds`, `elementChessBonds` | `act.charChessDataDict[*].bondIds` (union) | `buildChess` |
 | `bondChessIds` | `act.bondInfoDict[*].chessIdList` (union) | `buildBonds` (`members` / `visibleMembers`) |
 | `chessGarrisons` / `elementChessGarrisons` | `act.charChessDataDict[*].garrisonIds` (replace) | `buildChess` |
+| `clemensa.design` | the same two tables, per field (`applyClemensaDesign`, **last**) | `buildChess` |
 | `modeBonds.active` | `config.modes[*].activeBondIds` | `buildConfig` |
 | `garrisonKeep` | `data/garrisons.json` (read directly) | `buildGarrisons` |
 
 **Add-if-absent** is the rule for every table: an id the official table already has wins, the module's row is dropped,
-and the build prints a `custom: …` warning (so a future source update — or an official 克莱门莎 row — takes over by
-itself). Three fields are arrays *on* rows the official table already has and cannot be expressed that way; they are the
-three places the module ever modifies an official row:
+and the build prints a `custom: …` warning (so a future source update takes over by itself). Four fields are *on* rows
+the official table already has and cannot be expressed that way; they are the places the module ever modifies an
+official row:
 
-- `chessBonds` — a UNION with the row's `bondIds`; 巴别塔 and 元素 are only ever added, never removed. A FIAT chess
-  whose list must LOSE a bond (克莱门莎, 2026-10-12) cannot use it: her own record (`clemensa.chess`) carries the exact
-  final `bondIds`, `buildChess` copies that array verbatim, and neither union table names her.
+- `chessBonds` (and its 元素 twin `elementChessBonds`) — a UNION with the row's `bondIds`; 巴别塔 and 元素 are only ever
+  added, never removed. A FIAT chess whose list must LOSE a bond (克莱门莎, 2026-10-12) cannot use it: her own record
+  (`clemensa.chess`) carries the exact final `bondIds`, `buildChess` copies that array verbatim, and neither union table
+  names her.
 - `bondChessIds` — the same UNION on an official bond's `chessIdList`: a fiat chess that carries an official bond must
   appear in that bond's member list, because `buildBonds` derives `members` / `visibleMembers` from it and the bond
   panel lists its 成员 from those (the mirror invariant `test/data.test.js` asserts).
 - `chessGarrisons` (and its 元素 twin `elementChessGarrisons`) — REPLACES the row's `garrisonIds`: the design overrides
   华法琳's trait cap — **withdrawn again on 2026-10-13 (§19.8)**, her row now points at the official pair — and extends
-  菲莱 / 烛煌 / 妮芙 / 克莱门莎's own rows, so their old `garrisonIds` give way to the module's pair instead of being
-  kept alongside it — the old official rows stay in the dataset through `garrisonKeep` (§19.4).
+  菲莱 / 烛煌 / 妮芙's own rows, so their old `garrisonIds` give way to the module's pair instead of being
+  kept alongside it — the old official rows stay in the dataset through `garrisonKeep` (§19.4). 克莱门莎 is deliberately
+  **not** in this table: her `garrisonIds` are a `clemensa.design` field (next), and stating them twice would let the
+  two copies drift.
+- `clemensa.design` — the EXPLICIT OVERRIDE (§19.9): `applyClemensaDesign` runs **after** the unions and REPLACE tables
+  above and forces `bondIds`, `garrisonIds`, `defaultSkillIndex` and `backupCharSkillIndex` onto whichever row the two
+  chess tables hold. It is the only mechanism here that beats an official row on purpose rather than yielding to it.
 
 Adding content means adding a row to one of those tables (and, for a bond, its `modeBonds` entry); nothing here encodes
 behaviour — the simulation of 巴别塔 lives in `server/sim/content/bonds/core.js` (`installBabel`) and that of 元素 in
@@ -1061,7 +1080,9 @@ the build otherwise) — both fields are written together, and **nothing else** 
 differs, and the module's convention is to report and skip such a no-op. The ten 自研 pairs state the index in their own
 rows (`members` `skill`; 珊比's / 克莱门莎's `shopRows`), which is a field of a row this module owns, not a fourth
 official-row exception. The hidden T5 twins of 华法琳 / 魔王 (`chess_char_5_04_a/_b`, `chess_char_5_09_a/_b`) are
-official data and already agree (0 / 2) — they are named by no table here.
+official data and already agree (0 / 2) — they are named by no table here. 克莱门莎's index alone is additionally
+restated as a `clemensa.design` field (§19.9), because the maintainer's ruling on it has to survive an official row;
+that restatement is idempotent, so this batch still reports no skill override.
 
 **华法琳's 特质 override is withdrawn.** Her visible T4 pair `chess_char_4_26_a/_b` is **still T4** (the T5
 `chess_char_5_04_a/_b` is the official hidden variant, never promoted by this project) and is back on its official
@@ -1078,3 +1099,52 @@ Consequences of the 2026-10-13 batch: `garrisons` **281 → 277** (the four with
 rows were already in the dataset), `chess` 286 / visible 122 / `bonds` 25 / `items` 121 / `bands` 40 / `effects` 370 /
 `backups` (`ownedPool` 65, 82 units, 238 forms) all unchanged — and every golden family that moved, moved for the
 default skill: `docs/history/0.2.4.md` §29.24.
+
+### 19.9 克莱门莎's explicit design override of the official mode (maintainer, 2026-10-13)
+
+**The official 0.2.5 client data already ships 克莱门莎 — but not as a chess.** Her character
+(`character_table.char_4231_clemnt`, `appellation` **"Clementia"**, 6★ 本源近卫, `nationId egir`) and her 盟约策略
+(`band_clementia`, 崇高牺牲) are official; her **chess** is not official anywhere. Checked field for field against
+`origin/master` (0.2.5) on 2026-10-13, the official tables carry **no** `charChessDataDict`, `charShopChessDatas`,
+`chessNormalIdLookupDict` or `garrisonDataDict` row of hers — under `chess_char_5_clemnt_a/_b` or any other id — and the
+official `data/chess.json` has 266 records against this dataset's 286. So her whole chess row, both forms, is still this
+module's (§19, above).
+
+**What we deviate from, and why.** Because the source *could* ship her chess rows at any update, and because the
+maintainer's rulings on her must hold if it does, `tools/content/custom.mjs` states her four ruled fields a second time
+as an **explicit override** (`clemensa.design`) and `tools/build-data.mjs applyClemensaDesign` forces them onto whichever
+row ends up in the two chess tables — the fiat row today, an official row tomorrow. It runs **last**, after the
+`chessBonds` unions and after the `chessGarrisons` / `elementChessGarrisons` REPLACE tables, so nothing can undo it; a
+differing official value is replaced and reported as `custom: 克莱门莎 design override <id>.<field> → <value>`, and a
+field that already holds the design value is silent (`test/data.test.js` runs the build in-process, so a moved value
+fails there). This is a deliberate deviation from the official mode, at the maintainer's decision only
+(`AGENTS.md`; maintainer 裁决 (a) of 2026-10-13).
+
+| forced field | value (both `chess_char_5_clemnt_a` and `_b`) | why |
+|---|---|---|
+| `bondIds` | **`['egirShip', 'swiftShip', 'elementShip']`**, order included | the maintainer's ruling of 2026-10-12: 阿戈尔 / 迅捷 / 元素. 不屈 is removed, and this is the only channel that can remove a bond — the union tables (`chessBonds` / `elementChessBonds`) can only add |
+| `garrisonIds` | `['garrison_178_a']` / `['garrison_178_b']` | the 元素 特质 pair replaces her committed `garrison_161_a/_b` (每击倒 3 名 → 【阿戈尔】【迅捷】【元素】+2 / +4, 每场至多 +14 / +28); §19.5, `docs/research/17-element-bond.md` §2 / §5 item 10 |
+| `defaultSkillIndex` | `1` — S2 「风暴潮」 | the maintainer's default-skill batch of 2026-10-13 (§19.8) |
+| `backupCharSkillIndex` | `1` | a PRESET chess is its own stand-in: `checkUnitFormParity` fails the build when the stand-in's skill differs from the chess default (§19.8) |
+
+**Everything else about her row stays inheritance.** Only those four fields are forced; `identifier` (129 / 262),
+`status` (E2 Lv1 / E2 Lv60), `upgradeNum` / `upgradeChessId` (3, `_a → _b`), tier 5, `shopSortId` 999, `isHidden` false,
+`chessType PRESET` and the backup charId are the record's own today and would come from the official row if one existed —
+that is the difference between this override and replacing the row wholesale.
+
+**Her `appellation` is a separate, earlier deviation, and it is still active.** `custom.mjs characters` carries
+`char_4231_clemnt: { appellation: 'Clemensa' }`, and `addCharacter` applies it as a field-level correction of the
+official character row (upstream spells it "Clementia"). Every build reports
+`custom: character char_4231_clemnt is in the official data; the custom values replaced appellation="Clemensa"` — that
+warning is **expected, not an anomaly**, and it is one of the two warnings a 0.2.5 tree with the research layer enabled
+produces (the other is the dropped `act1autochess_m01` research annotation). It is why the official appellation never
+reaches `data/chess.json`.
+
+### Acquisition subsets corrected in 0.2.5 (§30.2)
+
+`tools/build-data.mjs` owns the measured Rockrock/Flametail subset weights from
+[路标月报#2](https://www.bilibili.com/video/BV1eLXXBqEgF/). Rockrock: ordinary hammer 10; tremble, undying, haste,
+burn hammers 2 each; limited accelerator 1; shield drone and laser emitter 4 each. Flametail: Wild Mane 10,
+Ashlock 10, Fartooth 3. Rebuild `choices.json` offline; these weights do not exempt draws from shared availability.
+The runtime derives unlimited fixed-gift families from `SERVER_GAIN_EQUIP`; this is a grant-source exemption,
+not a zero-occupancy flag or a manually maintained second list in generated data.

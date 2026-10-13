@@ -164,7 +164,8 @@ drawDisabledBonds`), and when it is, 珊比's chess is banned for that match lik
    `<战斗中>击倒敌人时，使已激活的【阿戈尔】【迅捷】【不屈】层数+2 / +3` — the official
    `act1autochess_gar_event_selfkillenemy` row with `check_cnt` 1, i.e. **every** kill and **no cap**. The maintainer's
    version adds a rhythm and a cap (`check_cnt` 3, `max_add_count_per_battle` 14 / 28). The old pair stays declared
-   (`clemensa.garrisons`) and stays in `data/garrisons.json` through `garrisonKeep`, with no owners. **Follow-up
+   (`clemensa.garrisons`) and stays in `data/garrisons.json` through `garrisonKeep`, with no owners (the new pair is
+   forced by the `clemensa.design` override, §5 item 10). **Follow-up
    (maintainer, 2026-10-12):** its TARGET LIST converged on her new bond list — `bbStr.bond_id` and the text now read
    【阿戈尔】【迅捷】【元素】, so the trait no longer adds layers to 不屈 (§5 item 9).
 3. **`[ASSUMED]` — 侵蚀's 0.03 s dispatch.** The design asks for a hit every 0.03 s while the simulation's tick is
@@ -199,8 +200,9 @@ drawDisabledBonds`), and when it is, 珊比's chess is banned for that match lik
    first), recorded in `docs/research/07-assets.json` and `docs/ASSETS.md`.
 9. **克莱门莎's bond list and trait target list (maintainer, 2026-10-12).** She is 阿戈尔 / 迅捷 / **元素**: 不屈
    (`indomShip`) is **removed**, and the same three bonds are her trait's targets. Both halves are data:
-   - her FIAT records (`tools/content/custom.mjs` `clemensa.chess`) state the **exact final `bondIds`**
-     `['egirShip', 'swiftShip', 'elementShip']` — the module header's REMOVING rule, because the union tables
+   - her records (`tools/content/custom.mjs` `clemensa.chess`) state the **exact final `bondIds`**
+     `['egirShip', 'swiftShip', 'elementShip']`, and the `clemensa.design` override enforces the same list on whichever
+     row is in `charChessDataDict` (§5 item 10) — the module header's REMOVING rule, because the union tables
      (`chessBonds` / `elementChessBonds`) can only ADD a bond. `elementChessBonds` therefore no longer names her, and
      `bondChessIds.indomShip` no longer carries her two records;
    - `garrison_178_a/_b`'s `bbStr.bond_id` is `egirShip,swiftShip,elementShip` and their text reads
@@ -209,6 +211,25 @@ drawDisabledBonds`), and when it is, 珊比's chess is banned for that match lik
    Member tables after the ruling: `elementShip` 8 `members` / 7 `visibleMembers` (unchanged — she was listed there
    from the start) and `indomShip` 11 / 9 → **10 / 8** (the two removed ids are one operator, and `members` carries
    the NORMAL id of each pair). `docs/DATA.md` §19.5 and `docs/history/0.2.4.md` §29.21/§29.23 carry the same record.
+10. **克莱门莎 is an EXPLICIT OVERRIDE of the official mode (maintainer 裁决 (a), 2026-10-13).** The official client data
+    ships her **character** (`character_table.char_4231_clemnt`, official `appellation` "Clementia") and her 盟约策略
+    (`band_clementia`), but — checked against `origin/master` 0.2.5 on 2026-10-13 — **no chess at all**: no
+    `charChessDataDict` / `charShopChessDatas` / `chessNormalIdLookupDict` / `garrisonDataDict` row of hers under any id
+    (official `data/chess.json` has 266 records against this dataset's 286). Until a source update ships one, this
+    project's fiat row is the only thing that puts her in the shop.
+    Because that update could arrive at any time and the rulings above must hold if it does, `custom.mjs` states her four
+    ruled fields a second time as `clemensa.design` and `tools/build-data.mjs` `applyClemensaDesign` forces them onto
+    whichever row the two chess tables hold — **after** every other custom merge, so neither the `chessBonds` unions nor
+    the `chessGarrisons` / `elementChessGarrisons` REPLACE tables can undo it. The four fields are `bondIds` (item 9),
+    `garrisonIds` (`garrison_178_a/_b`, item 2), `defaultSkillIndex` and `backupCharSkillIndex` (both 1 — S2 风暴潮,
+    `docs/DATA.md` §19.8/§19.9). Everything else about her row (identifier, status, tier, `shopSortId`, upgrade pair,
+    hidden flag, backup charId) stays inheritance: only the ruled fields are forced, which is why this is an override and
+    not a row replacement.
+    This is 克莱门莎's second deliberate deviation from the official mode: her `appellation` has been fiat since
+    2026-10-12 (`custom.mjs characters` → "Clemensa"; the build's
+    `custom: character char_4231_clemnt is in the official data; the custom values replaced appellation="Clemensa"` line
+    is that correction and is **expected**). `AGENTS.md` 「Deliberate deviations from the official mode are the
+    maintainer's decision only」 is the standing authority; `docs/DATA.md` §19.9 is the reference.
 
 ---
 
@@ -240,3 +261,4 @@ through their existing per-effect-key sweeps, and the 妮芙 case additionally a
 | v1 | 2026-10-12 | First version: the bond, the four 二档 clauses, the seven members and their traits, 珊比's promotion, the mode whitelist, the icon, the `[ASSUMED]` list. |
 | v1.1 | 2026-10-12 | Maintainer's two rulings (§5 item 9, §2): 克莱门莎's bonds and trait targets become 阿戈尔 / 迅捷 / 元素 (不屈 removed, exact `bondIds` on the fiat record), and 妮芙's 元素 clause requires an activated bond like 迅捷 (her `BOND_REQUIRE_OVERRIDE` entry removed, §5 item 4). |
 | v1.2 | 2026-10-13 | Maintainer's default-skill batch (§2): 珊比 → S2 「慢慢走~」 and 克莱门莎 → S2 「风暴潮」, on both records of each pair (`defaultSkillIndex` = `backupCharSkillIndex`). Both rows are this module's own, so no official row is overridden; the other five members keep S1. |
+| v1.3 | 2026-10-13 | Maintainer 裁决 (a) (§5 item 10): 克莱门莎 becomes an EXPLICIT OVERRIDE of the official mode. The official 0.2.5 data ships her character and her 盟约策略 but no chess row, so `clemensa.design` + `applyClemensaDesign` force her four ruled fields (`bondIds`, `garrisonIds`, both skill indices) onto whichever row the chess tables hold, after every other merge; her `appellation= 'Clemensa'` fiat correction stays. Her ids are dropped from `elementChessGarrisons` so the design block is the single statement of the pair. |

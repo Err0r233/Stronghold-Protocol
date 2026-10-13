@@ -419,30 +419,38 @@ async function loadManifest() {
 // ===== custom content (自研 deviations) ==========================================================
 
 /**
- * The maintainer's research-only content: tools/content/custom.mjs. Two fiat blocks of equal standing — the 巴别塔 core
- * bond with its 11 members and their 特质 (docs/research/15-babel-bond.md), and 克莱门莎, the 自选 operator the maintainer
- * turned into a T5 shop chess with her official 特质 (Codex, 2026-10-12), which exists in no build source and would be
- * dropped by every rebuild without this file. The module documents every entry and the semantics; this function is only
- * the merge. It runs on the loaded tables BEFORE any builder and is ADD-IF-ABSENT throughout:
+ * The maintainer's research-only content: tools/content/custom.mjs. Three fiat blocks of equal standing — the 巴别塔 core
+ * bond with its 11 members and their 特质 (docs/research/15-babel-bond.md), the 元素 add-on bond with its 7 members
+ * (docs/research/17-element-bond.md), and 克莱门莎, the 自选 operator the maintainer turned into a T5 shop chess with her
+ * official 特质 (Codex, 2026-10-12), which exists in no build source and would be dropped by every rebuild without this
+ * file. The module documents every entry and the semantics; this function is only the merge. It runs on the loaded
+ * tables BEFORE any builder and is ADD-IF-ABSENT throughout:
  *
- *   act.charChessDataDict / charShopChessDatas / chessNormalIdLookupDict   chess, shopRows, normalLookup, clemensa.*
- *   act.garrisonDataDict                                                   garrisons, clemensa.garrisons
- *   act.bondInfoDict / ac.bondInfoDict                                     bond, modeBond
- *   act.effectInfoDataDict / effectBuffInfoDataDict                        effect, effectBuffs, effects, effectBuffsPledge
- *   charTable                                                              characters
+ *   act.charChessDataDict / charShopChessDatas / chessNormalIdLookupDict   chess, elementChess, shopRows, normalLookup,
+ *                                                                         clemensa.chess / .shopRows / .normalLookup
+ *   act.garrisonDataDict                                                   garrisons, elementGarrisons, clemensa.garrisons
+ *   act.bondInfoDict / ac.bondInfoDict                                     bond, modeBond, elementBond, elementModeBond
+ *   act.effectInfoDataDict / effectBuffInfoDataDict                        effect, effectBuffs, effects, effectBuffsPledge,
+ *                                                                         elementEffect, elementEffectBuffs, itemEffects, …
+ *   act.trapChessDataDict / trapShopChessDatas                             items, itemShopRows
+ *   charTable                                                              characters, itemTraps
  *   buildConfig's mode overlay (returned here, applied there)              modeBonds.active
  *
  * An id the official table already has is never overwritten: the official row wins and the build reports a `custom:`
- * warning, so a future source update (or an official 克莱门莎 row) silently takes over. The three exceptions are arrays on
- * official rows: the module's `chessBonds` is a UNION with the official `bondIds` (巴别塔 is only ever added to them),
- * `bondChessIds` is the same UNION on an official bond's `chessIdList` (a fiat chess that carries an official bond must
- * appear in that bond's member list — buildBonds derives `members` from it) and `chessGarrisons` /
- * `elementChessGarrisons` REPLACE `garrisonIds`. `chessGarrisons` is EMPTY (华法琳's 7/14 → 4/8 cap override was
- * withdrawn by the maintainer on 2026-10-13 — her visible T4 pair is back on its official `garrison_72_a/_b`, which
- * grants the official `garrison_95_a/_b`, +1/+2 per skill cast and capped at 7/14); the live users are
- * `elementChessGarrisons` (菲莱 / 烛煌 / 妮芙 / 克莱门莎, a design decision, not a patch). A chess's DEFAULT SKILL is a
- * scalar on its own shop row and needs no exception: the 自研 rows carry it in `custom.mjs` (`members` `skill`,
- * 珊比's / 克莱门莎's `shopRows`), the official chess of the same batch already carry theirs.
+ * warning, so a future source update takes over. The exceptions, all deliberate and documented in the module:
+ *   · `chessBonds` / `elementChessBonds` UNION into an official row's `bondIds` (巴别塔 / 元素 are only ever added),
+ *     and `bondChessIds` is the same UNION on an official bond's `chessIdList` (a fiat chess that carries an official
+ *     bond must appear in that bond's member list — buildBonds derives `members` from it).
+ *   · `chessGarrisons` / `elementChessGarrisons` REPLACE `garrisonIds`. `chessGarrisons` is EMPTY (华法琳's 7/14 → 4/8
+ *     cap override was withdrawn by the maintainer on 2026-10-13 — her visible T4 pair is back on its official
+ *     `garrison_72_a/_b`, which grants the official `garrison_95_a/_b`, +1/+2 per skill cast and capped at 7/14); the
+ *     live users are `elementChessGarrisons` (菲莱 / 烛煌 / 妮芙).
+ *   · `clemensa.design` is the EXPLICIT DESIGN OVERRIDE of 克莱门莎's four ruled fields, applied last by
+ *     `applyClemensaDesign` — the one mechanism built to beat an official 克莱门莎 row (the official 0.2.5 tables carry
+ *     her character and her 盟约策略 but no chess; docs/DATA.md §19.6).
+ * A chess's DEFAULT SKILL is a scalar on its own shop row and needs no exception of its own: the 自研 rows carry it in
+ * `custom.mjs` (`members` `skill`, 珊比's / 克莱门莎's `shopRows`), the official chess of the same batch already carry
+ * theirs, and 克莱门莎's is restated as a design field so it survives an official row.
  * `characters` is add-if-absent for the ROW, with field-level corrections of an official row where the module lists a
  * differing value (克莱门莎's `appellation`) — both reported. `--no-research` skips the whole layer, like every other
  * research-derived field.
@@ -554,8 +562,53 @@ function applyCustom(ctx) {
   addListValues(act.bondInfoDict, c.bondChessIds, 'chessIdList', 'custom member on bond');
   setListValues(act.charChessDataDict, c.chessGarrisons, 'garrisonIds', 'custom garrison on chess');
   setListValues(act.charChessDataDict, c.elementChessGarrisons, 'garrisonIds', 'element garrison on chess');
+  // LAST, so no union / REPLACE table above can undo it: the maintainer's explicit design override.
+  applyClemensaDesign(ctx, c.clemensa?.design);
   for (const id of c.modeBonds?.active || []) modeActiveBonds.push(id);
   return { modeActiveBonds };
+}
+
+/**
+ * 克莱门莎's EXPLICIT DESIGN OVERRIDE — the one place this build deliberately beats an official row field for field
+ * (AGENTS.md 「Deliberate deviations from the official mode are the maintainer's decision only」; docs/DATA.md §19.6,
+ * docs/research/17-element-bond.md §5 item 10). `customContent.clemensa.design` names, per chess id, the exact final
+ * values of the fields the maintainer ruled on (`bondIds`, `garrisonIds`) and, under `shop`, of the scalars that live on
+ * the charShopChessDatas row the chess resolves through — the default skill (`defaultSkillIndex`, mirrored into
+ * `backupCharSkillIndex`, which `checkUnitFormParity` requires to agree).
+ *
+ * It runs AFTER every other merge so that the `chessGarrisons` / `elementChessGarrisons` REPLACE tables and the
+ * `chessBonds` unions cannot undo it, and it works on whichever row is in the table: the fiat row this module inserted
+ * (the state of the official 0.2.5 tables — they carry her character and her 盟约策略 but no chess) or an official row a
+ * future source update supplies (the case this exists for). Either way the four fields end up with the design values.
+ *
+ * Reporting follows the module's convention: a table with no row for the id is a `custom:` warning (nothing to force),
+ * and every field actually changed by the override is one `custom: … design override …` line naming both the field and
+ * the value; a field that already holds the design value is silent, like every other idempotent path in this file.
+ * @param {object} ctx loadContext() result (mutated)
+ * @param {Record<string, {bondIds?:string[], garrisonIds?:string[], shop?:Record<string,unknown>}>} [design]
+ */
+function applyClemensaDesign(ctx, design) {
+  const { act } = ctx;
+  for (const [chessId, d] of Object.entries(design || {})) {
+    const rec = act.charChessDataDict?.[chessId];
+    if (!rec) { warn(`custom: 克莱门莎 design override ${chessId} is not in charChessDataDict (nothing to force)`); continue; }
+    const report = (field, value) => warn(`custom: 克莱门莎 design override ${chessId}.${field} → ${JSON.stringify(value)}`);
+    for (const field of ['bondIds', 'garrisonIds']) {
+      if (!d[field]) continue;
+      if (isDeepStrictEqual(rec[field] || [], d[field])) continue;
+      rec[field] = [...d[field]];
+      report(field, rec[field]);
+    }
+    if (!d.shop) continue;
+    const baseId = act.chessNormalIdLookupDict?.[chessId] || chessId;
+    const shop = act.charShopChessDatas?.[baseId];
+    if (!shop) { warn(`custom: 克莱门莎 design override ${chessId} has no charShopChessDatas row for ${baseId} (nothing to force)`); continue; }
+    for (const [field, value] of Object.entries(d.shop)) {
+      if (shop[field] === value) continue;
+      shop[field] = value;
+      warn(`custom: 克莱门莎 design override ${baseId}.${field} → ${JSON.stringify(value)}`);
+    }
+  }
 }
 
 // ===== shared game-object helpers ===============================================================
@@ -3666,11 +3719,11 @@ function buildChoices(ctx, effects, items, chess) {
       // weights are server-side (PRTS 11-25 note: "装备【灼燃维式重锤】的出现概率调整") — uniform [ASSUMED]
       pool_equip_vict: { kind: 'equip', items: ['灼燃维式重锤', '坚固维式重锤', '加速维式重锤', '战栗维式重锤'].map(itemByName), assumed: true },
       pool_equip_pepe: { kind: 'equip', weighted: [['盟约之币', 45], ['萨尔贡浓茶', 45], ['黄沙罗盘', 10]].map(([n, w]) => [itemByName(n), w]), goldenWeights: [40, 40, 20], assumed: true },
-      // 洛洛的定制品 = the same 4 special hammers (user playtest #4, first-hand: "几个特殊的维式重锤是干员洛洛或者维多利亚
-      // 阵营获得的"); uniform [ASSUMED]
-      pool_equip_rockr: { kind: 'equip', items: ['灼燃维式重锤', '坚固维式重锤', '加速维式重锤', '战栗维式重锤'].map(itemByName), assumed: true },
+      // 路标月报#2 BV1eLXXBqEgF, card-pool rule 6: measured subset weights. The four special hammers are still
+      // exclusive to this and Victoria's pools, but are not the whole of Rockrock's pool.
+      pool_equip_rockr: { kind: 'equip', weighted: [['维式重锤', 10], ['战栗维式重锤', 2], ['坚固维式重锤', 2], ['加速维式重锤', 2], ['灼燃维式重锤', 2], ['有限加速器', 1], ['护盾无人机', 4], ['激光发射器', 4]].map(([n, w]) => [itemByName(n), w]), assumed: true },
       pool_chess_glady: { kind: 'chess', items: ['斯卡蒂', '幽灵鲨', '深巡'].map(chessByName), assumed: true },
-      pool_char_pinus: { kind: 'chess', weighted: [['野鬃', 45], ['灰毫', 45], ['远牙', 10]].map(([n, w]) => [chessByName(n), w]), assumed: true },
+      pool_char_pinus: { kind: 'chess', weighted: [['野鬃', 10], ['灰毫', 10], ['远牙', 3]].map(([n, w]) => [chessByName(n), w]), assumed: true },
       pool_char_later: { kind: 'chess', bond: 'lateranoShip', minTier: 4, golden: true, rule: 'shopEligible', assumed: true },
       ...Object.fromEntries([1, 2, 3, 4, 5, 6].map((t) => [`pool_chess_shop_${t}_reward`, { kind: 'chess', tier: t, rule: 'shopEligible', assumed: true }])),
     },
@@ -4054,7 +4107,8 @@ function validateAll(f) {
   }
   const visible = Object.values(chess).filter((c) => !c.isGolden && c.visible);
   // The official tables have 23 bonds and 112 visible non-DIY chess; tools/content/custom.mjs (the maintainer's fiat
-  // layer) adds the rows below on top. The expected counts track the LENGTH of that layer rather than a fixed number,
+  // layer, docs/DATA.md §19) adds 10 more on top — the 8 巴别塔 members, 克莱门莎 and 珊比 — so the built dataset holds
+  // 122 visible non-DIY chess. The expected counts track the LENGTH of that layer rather than a fixed number,
   // so adding a member stays a one-file change. The two blocks of the module are counted separately: 巴别塔's `chess`
   // (whose visible rows are a member list, plus 克莱门莎 as the one fixed addition not driven by one) and 元素's
   // `elementChess` (珊比's promotion — she has no `chess` entry, because she was a 自选 pick rather than a 巴别塔

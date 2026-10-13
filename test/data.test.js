@@ -76,10 +76,10 @@ test('numbers: every stats/bb/enemyScale object holds only finite numbers (no nu
 });
 
 test('chess: 286 records, 122 visible non-DIY (18/18/21/23/22/20 per tier)', () => {
-  // The official tables have 268 chess / 113 visible non-DIY; tools/content/custom.mjs (the maintainer's fiat layer,
-  // 巴别塔 + 克莱门莎 + the 元素 add-on bond's 珊比) adds the 8 巴别塔 members (16 records, 8 visible) and 珊比's
-  // promotion out of the 自选 pool (2 records, 1 visible) — docs/research/15-babel-bond.md §2, §6.3 OPEN-4;
-  // docs/research/17-element-bond.md §3.
+  // The official 0.2.5 tables have 266 chess / 112 visible non-DIY; tools/content/custom.mjs (the maintainer's fiat
+  // layer, 巴别塔 + 克莱门莎 + the 元素 add-on bond's 珊比) adds the 8 巴别塔 members (16 records, 8 visible),
+  // 克莱门莎 (2 records, 1 visible) and 珊比's promotion out of the 自选 pool (2 records, 1 visible) —
+  // docs/research/15-babel-bond.md §2, §6.3 OPEN-4; docs/research/17-element-bond.md §3.
   assert.equal(Object.keys(chess).length, 286);
   assert.equal(visible.length, 122);
   const perTier = {};

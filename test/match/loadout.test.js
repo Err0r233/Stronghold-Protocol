@@ -33,7 +33,8 @@ function place(m, ps, chessId, row, col) {
 // ---- shared checks -------------------------------------------------------------------------------------------------
 
 test('data carries the §16 choices every visible chess needs (skills at both statuses, elite modules + none)', () => {
-  // 121 = the official 113 visible non-DIY chess + the 8 members of the 自研 巴别塔 bond (tools/content/custom.mjs).
+  // 122 = the official 112 visible non-DIY chess + the 8 members of the 自研 巴别塔 bond + 克莱门莎 and 珊比
+  // (tools/content/custom.mjs).
   assert.equal(visible.length, 122);
   for (const c of visible) {
     const g = chess(c.goldenId);

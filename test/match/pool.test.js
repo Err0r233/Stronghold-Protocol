@@ -13,8 +13,8 @@ test('co-op pool doubles the measured single-player capacities; only visible, un
   const pool = new SharedPool(gd, { banned: [] });
   const caps = { 1: 12, 2: 14, 3: 18, 4: 16, 5: 8, 6: 5 };
   assert.equal(pool.entries.size, gd.visibleChess.length);
-  // 122 visible non-DIY chess: the official 113 + the 8 members of the 自研 巴别塔 core bond (tools/content/custom.mjs,
-  // docs/research/15-babel-bond.md §2 / §6.3 OPEN-4) + 珊比, the 元素 bond's promoted T4 shop chess
+  // 122 visible non-DIY chess: the official 112 + the 8 members of the 自研 巴别塔 core bond (tools/content/custom.mjs,
+  // docs/research/15-babel-bond.md §2 / §6.3 OPEN-4) + 克莱门莎 + 珊比, the 元素 bond's promoted T4 shop chess
   // (docs/research/17-element-bond.md §3) — all ordinary shop chess, entering the pool like any other.
   assert.equal(pool.entries.size, 122);
   for (const [id, e] of pool.entries) {
@@ -129,15 +129,33 @@ test('effect-only items are never shop items: not in shopItemsByTier, never in t
   m.dispose();
 });
 
-test('维多利亚 25-layer reward and 洛洛的定制品: the 4 special 维式重锤 (and nothing else)', () => {
+test('维多利亚 25-layer reward: the 4 special 维式重锤 (and nothing else)', () => {
   const special = ['chess_item_2_03_e_a', 'chess_item_3_09_e_a', 'chess_item_3_10_e_a', 'chess_item_4_09_e_a'];
   const m = makeMatch({ mode: 'coop', seed: 3, fake: true }).m;
-  for (const pid of ['pool_equip_vict', 'pool_equip_rockr']) {
+  for (const pid of ['pool_equip_vict']) {
     assert.deepEqual([...DATA.choices.pools[pid].items].sort(), special, pid);
     const seen = new Set();
     for (let i = 0; i < 200; i++) seen.add(m.rollPool(pid).id);
     assert.deepEqual([...seen].sort(), special, `${pid}: every special hammer can come, nothing else`);
   }
+  m.dispose();
+});
+
+test('洛洛 and 焰尾 use the measured eight-item and 10/10/3 subsets; exhausted shop items are excluded', () => {
+  const m = makeMatch({ mode: 'coop', seed: 3, fake: true }).m;
+  const rock = DATA.choices.pools.pool_equip_rockr.weighted;
+  assert.deepEqual(rock.map(([id, n]) => [m.gd.item(id).name, n]), [
+    ['维式重锤', 10], ['战栗维式重锤', 2], ['坚固维式重锤', 2], ['加速维式重锤', 2], ['灼燃维式重锤', 2],
+    ['有限加速器', 1], ['护盾无人机', 4], ['激光发射器', 4],
+  ]);
+  assert.deepEqual(DATA.choices.pools.pool_char_pinus.weighted.map(([id, n]) => [m.gd.chess(id).name, n]), [['野鬃', 10], ['灰毫', 10], ['远牙', 3]]);
+  const seen = new Set();
+  for (let i = 0; i < 300; i++) seen.add(m.rollPool('pool_equip_rockr').id);
+  assert.deepEqual([...seen].sort(), rock.map(x => x[0]).sort());
+  const normal = rock[0][0], ps = m.order[0];
+  for (let i = 0; i < m.itemPool.cap(normal); i++) assert.ok(ps.acquireItem(normal));
+  assert.equal(m.itemPool.left(normal), 0);
+  for (let i = 0; i < 100; i++) assert.notEqual(m.rollPool('pool_equip_rockr').id, normal);
   m.dispose();
 });
 
