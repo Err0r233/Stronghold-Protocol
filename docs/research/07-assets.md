@@ -25,7 +25,7 @@ Probe artifacts are in the scratchpad at `…/scratchpad/gd/extra/assets/`:
 | e) Enemy icon | yuanyan `enemy/` | `{enemyId}.png` | **200/200** | ~158×158, ~44 KB | none needed |
 | f) **Bond icons: the real autochess ones** | AA2 `ui/autochess/[uc]autochesscommon/arts/bondicon/` | `{iconId.toLowerCase()}.png`, e.g. `icon_yanship.png` | **23/23** | ~110×98 white glyph, ~4 KB | `arts/camplogo/logo_{nation}.png` (see §4) |
 | g) **Item / trap icons: the real autochess ones** | AA2 `…/arts/shopitemicon/` | `{trapId}.png` | **59/59** (56 EQUIP + 3 MAGIC) | ~137×157, ~19 KB | none needed |
-| g') Band (strategy) icons | AA2 `…/arts/bandicon/` | `icon_{bandId minus "band_"}.png` | **40/40** | 180×180, ~69 KB | — |
+| g') Band (strategy) icons | AA2 `…/arts/bandicon/` | `icon_{bandId minus "band_"}.png` | **41/41** (the 40 official ones + the 自研 `band_w`, whose card is the maintainer's own art — no official art exists for a band the official tables do not carry) | 180×180, ~69 KB (the 自研 one 180×180, 50 456 B) | — |
 | h) Map tiles | **none usable**: the game map is a 3D Unity scene | — | — | — | **Draw tiles procedurally** (§7). Use real autochess backdrops for the lobby and prep screens. |
 | i) UI: rarity, elite, chess-level, shop, HUD | AA2 `ui/autochess/…` (537 PNGs) + `arts/rarity_hub`, `elite_hub` | see JSON `autochessUi`, `arts` | 100% | 0.3–250 KB | CSS-drawn panels (Unity 9-slice borders are not in the dump) |
 | j) Fonts | Google Fonts + self-hosted Bender / Novecento | §8 | — | — | system CJK |
@@ -181,7 +181,7 @@ All 23 are verified: white glyphs on transparent, so tint via CSS `filter` or ca
 | soloShip | 独行 | `icon_soloship.png` | 2169 | sub_lord_icon |
 | suntShip | 绝技 | `icon_suntship.png` | 3366 | elite_hub/elite_2.png |
 
-Band / strategy icons (g'): `…/[uc]autochesscommon/arts/bandicon/icon_{bldsk|amiya|duyaoy|sarkazb|orchid|justin|ermengard|lmlee|kirara|pepe|harold|sciurus|paganini|clementia|emperor|mberry|humus|quintus|yu|doberm|cathy|malkie|qalaisa|chen|damaztic|pith|dusk|cannot|ducklord|lisa|vodfox|ioleta|jesica|mlyss|makiri|fang|mlynar|chiave|narant|amedic}.png`. All **40/40** are 180×180 "STRATEGY" cards, ~69 KB each.
+Band / strategy icons (g'): `…/[uc]autochesscommon/arts/bandicon/icon_{bldsk|amiya|duyaoy|sarkazb|orchid|justin|ermengard|lmlee|kirara|pepe|harold|sciurus|paganini|clementia|emperor|mberry|humus|quintus|yu|doberm|cathy|malkie|qalaisa|chen|damaztic|pith|dusk|cannot|ducklord|lisa|vodfox|ioleta|jesica|mlyss|makiri|fang|mlynar|chiave|narant|amedic}.png`. All **40/40** are 180×180 "STRATEGY" cards, ~69 KB each. The dataset's 41st band is the 自研 W (`band_w`, `docs/DATA.md` §19.13): upstream has no card for it, so `public/assets/band/band_w.png` is the maintainer's own 策略 card (**maintainer-provided local art**, drawn 2026-10-14, replaced the 巴别塔-logo placeholder the earlier cut shipped). It is an 8-bit RGBA 180×180 PNG of 50 456 B: a 768×768 card face scaled with LANCZOS, with the shipped cards' measured silhouette as its alpha (the per-pixel maximum alpha over the 40 official cards — fully transparent in the four corners, 6–9 at the mid-edges, 255 in the middle; the same measurement is recorded in `docs/research/07-assets.json` `bands.band_w`).
 
 ## 5. Items / traps (g)
 `…/[uc]autochesscommon/arts/shopitemicon/{trapId}.png`, **59/59**, ~137×157 on a transparent background, avg 19 KB, e.g. `trap_1041_acarm041` 维式重锤.

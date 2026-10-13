@@ -576,8 +576,10 @@ export function makeCtx(m, ps, source, hook, ev = null) {
     },
     /**
      * Random chess id from the shared pool (copy-weighted) — and the player's own 自选 stock (player/diy.js
-     * diyStockEntries, 0.2.0: 「自选干员放入后模拟中的补给池随机范围也将被相应扩大」). opts: { maxTier, tier, bond, filter(id) };
-     * bonds are read through the player's data view (a slotted slot: its operator's).
+     * diyStockEntries, 0.2.0: 「自选干员放入后模拟中的补给池随机范围也将被相应扩大」). opts:
+     * { maxTier, minTier, tier, bond, filter(id) }; bonds are read through the player's data view (a slotted slot: its
+     * operator's). `minTier` (default 1) is the floor a 「tier N and above」 reward needs (W 滥炸无休's second
+     * threshold rolls `{ bond: 'babelShip', minTier: 4 }`, which is what lets 维什戴尔 T6 land there).
      */
     rollChess: (opts = {}) => {
       const f = (id) => {
@@ -585,7 +587,7 @@ export function makeCtx(m, ps, source, hook, ev = null) {
         return typeof opts.filter === 'function' ? !!opts.filter(id) : true;
       };
       const extra = typeof ps.diyStockEntries === 'function' ? ps.diyStockEntries() : null;
-      return m.pool.roll(m.rngMeta, { maxTier: Number.isInteger(opts.maxTier) ? opts.maxTier : 6, tier: Number.isInteger(opts.tier) ? opts.tier : null, filter: f, extra, ignoreCounts: opts.ignoreCounts === true });
+      return m.pool.roll(m.rngMeta, { maxTier: Number.isInteger(opts.maxTier) ? opts.maxTier : 6, minTier: Number.isInteger(opts.minTier) ? opts.minTier : 1, tier: Number.isInteger(opts.tier) ? opts.tier : null, filter: f, extra, ignoreCounts: opts.ignoreCounts === true });
     },
     rollItem: (opts = {}) => m.rollItemId(opts),
     /**

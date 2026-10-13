@@ -663,18 +663,28 @@ function installKazimierz(battle, pid, bb, members) {
 // Tier 1 (3 members on board): members ATK and maxHP ×(1 + base_atk + atk_per_stack·L) (直接乘算, like every other core),
 //   plus a rider: every distinct OTHER bond a member carries — counted only for bonds available in this match, since the
 //   player's own snapshot omits the mode's static inactive list (the owner's decision of 2026-10-12, record OPEN-1) —
-//   adds other_bond_kind_atk to the members' ATK, capped at other_bond_kind_atk_cap.
+//   adds other_bond_kind_atk to the members' ATK, capped at other_bond_kind_atk_cap. Since 2026-10-13 that rider is an
+//   INDEPENDENT bonus applied as a FINAL MULTIPLIER, not a term of the 直接乘算 bucket: `bond:babel:rider` carries
+//   `{ atkMul: 1 + rider }` under its own buff key, so ATK is
+//   ((base + Σflat)(1 + ΣatkPct) + ΣatkFinal) × (1 + rider) × … (units.js `_recalc`) — ATK only, never max HP.
 // Tier 2 (6 members): 「指挥」. At battle start the member with the highest ATK (a snapshot; ties by unit id, so the pick
 //   is stable) becomes the 指挥. Allies in its eight surrounding tiles — and the 指挥 itself (record §1.2) — deal
-//   ×(cmd_damage_scale_base + cmd_damage_scale_per_stack·L) damage, capped at cmd_damage_scale_cap, and their attacks
-//   ignore (cmd_penetrate_base + cmd_penetrate_per_stack·L) of DEF and RES, capped at cmd_penetrate_cap. That penetration
+//   ×(base_damage_scale_show + damage_scale_per_stack·L) damage, capped at damage_scale_cap, and their attacks ignore
+//   (base_def_penetrate + def_penetrate_per_stack·L) of DEF and (base_res_penetrate + res_penetrate_per_stack·L) of RES,
+//   both capped at penetrate_cap. That penetration
 //   is taken as the STRONGEST single source, never added to 精准's own 30 % (battle.applyStrongest's "same-name effect,
 //   strongest wins" rule — record §1.2 "引擎约定", otherwise 60 % + 30 % would flatten DEF/RES).
+//   KEY NAMES: every key read here is the one `tools/content/custom.mjs` writes and `data/bonds.json` carries — the
+//   authoritative side, matching `docs/protocol.md`. Until 2026-10-13 this reader still asked for an older
+//   `cmd_damage_scale_base` / `cmd_penetrate_base` naming that no record ever defined, so `num()` fell back to its
+//   defaults and the whole tier-2 aura was a silent no-op (damage ×1.00, penetration 0); the names below are that fix.
+//   The 一档 main effect and the rider were never affected — they always read existing keys.
 //   The 指挥 passes to the next-highest surviving member when it is knocked out. The check is deferred one tick and
 //   re-reads `alive`/`deployed`, so a 不屈 / 阿戈尔 revive (which redeploys the unit in place inside its own death hook)
 //   keeps the command — the priority order the record asks for without hard-coding another bond's priority.
 const BABEL = 'babelShip';
 const BABEL_L1 = 'bond:babel:l1';
+const BABEL_RIDER = 'bond:babel:rider';
 
 /** Distinct other bonds the members carry that this match can actually activate (record OPEN-1). */
 function babelKinds(battle, pid, members) {
@@ -698,12 +708,19 @@ function installBabel(battle, pid, bb, members) {
   const layers = () => S.bondLayers(battle, pid, BABEL);
   const refreshL1 = () => {
     const L = layers();
-    const rider = Math.min(num(bb.other_bond_kind_atk_cap, 0), num(bb.other_bond_kind_atk, 0) * babelKinds(battle, pid, members));
     const mods = S.directMods({
-      atk: num(bb.base_atk, 0) + num(bb.atk_per_stack, 0) * L + rider,
+      atk: num(bb.base_atk, 0) + num(bb.atk_per_stack, 0) * L,
       hp: num(bb.base_max_hp, 0) + num(bb.max_hp_per_stack, 0) * L,
     });
-    for (const u of members) S.passiveBuff(battle, u, BABEL_L1, mods);
+    // The rider is its own buff key and its own multiplier (`atkMul`, a MUL key of buffs.js): it multiplies the ATK the
+    // additive bucket produced instead of joining it, and it never touches max HP. Its key makes the refresh idempotent
+    // (passiveBuff ⇒ refresh 'replace'), and `removeBuff` clears it when the counted kinds fall back to zero.
+    const rider = Math.min(num(bb.other_bond_kind_atk_cap, 0), num(bb.other_bond_kind_atk, 0) * babelKinds(battle, pid, members));
+    for (const u of members) {
+      S.passiveBuff(battle, u, BABEL_L1, mods);
+      if (rider > 0) S.passiveBuff(battle, u, BABEL_RIDER, { atkMul: 1 + rider });
+      else battle.removeBuff(u, BABEL_RIDER);
+    }
   };
   refreshL1();
   // The hook fires before the layer is written (battle/economy.js), so the refresh waits for the next tick — the same
@@ -722,13 +739,18 @@ function installBabel(battle, pid, bb, members) {
     const src = c.source;
     if (!cmd || !src || src.side !== 'ally' || src.ownerId !== pid || !inAura(src)) return;
     const L = layers();
-    const scale = Math.min(num(bb.cmd_damage_scale_cap, Infinity), num(bb.cmd_damage_scale_base, 1) + num(bb.cmd_damage_scale_per_stack, 0) * L);
+    const scale = Math.min(num(bb.damage_scale_cap, Infinity), num(bb.base_damage_scale_show, 1) + num(bb.damage_scale_per_stack, 0) * L);
     c.dmg.mul = num(c.dmg.mul, 1) * scale;
-    const pen = Math.min(num(bb.cmd_penetrate_cap, 1), num(bb.cmd_penetrate_base, 0) + num(bb.cmd_penetrate_per_stack, 0) * L);
-    if (pen > 0) {
-      c.dmg.defIgnorePct = Math.max(num(c.dmg.defIgnorePct, 0), pen);
-      c.dmg.resIgnorePct = Math.max(num(c.dmg.resIgnorePct, 0), pen);
-    }
+    // DEF and RES are separate keys in the bb. "Same-name effect, strongest wins" (record §1.2 引擎约定): the damage
+    // pipeline ADDS the source's own stat-level ignore back on top of the instance's (`ss.defIgnorePct`, damage.js
+    // landedPreShield), so writing `pen` outright would let 精准's 30 % and this bond add up (0.30 + 0.30 = 0.60 when
+    // both are at 250 layers, flattening DEF/RES). Writing only the part above the source's own value lands the pair as
+    // max(stat, this bond) — the total stays max(stat + other instance-level ignores, pen).
+    const sDef = num(src.s.defIgnorePct, 0), sRes = num(src.s.resIgnorePct, 0);
+    const defPen = Math.min(num(bb.penetrate_cap, 1), num(bb.base_def_penetrate, 0) + num(bb.def_penetrate_per_stack, 0) * L);
+    const resPen = Math.min(num(bb.penetrate_cap, 1), num(bb.base_res_penetrate, 0) + num(bb.res_penetrate_per_stack, 0) * L);
+    if (defPen > sDef) c.dmg.defIgnorePct = Math.max(num(c.dmg.defIgnorePct, 0), defPen - sDef);
+    if (resPen > sRes) c.dmg.resIgnorePct = Math.max(num(c.dmg.resIgnorePct, 0), resPen - sRes);
   });
   battle.on('battleStart', () => { cmd = babelPick(battle, pid); });
   battle.on('death', ({ unit }) => {

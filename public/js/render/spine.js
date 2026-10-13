@@ -25,7 +25,9 @@
 //   deploy()                              'Start' once, then base
 //   die()                                 die clip once (callers fade out afterwards); a skeleton without one holds its
 //                                         idle clip's first frame (GitHub issue #25: the attack loop went on)
-//   stunned (setBase('stun'))             stun clip, or the current track frozen at timeScale 0
+//   stunned (setBase('stun'))             stun clip — once, holding its last frame, when the clip's end is a pose of
+//                                         its own (维什戴尔's `Stun`, clipHoldsEnd), else as a cycle —, or the current
+//                                         track frozen at timeScale 0
 //   setForm(roles, change, end)           another clip set of the skeleton (an enemy's mode, a 傀儡师's 替身), after a change clip
 //                                         (no attack cuts the change clip short); `end` = { clip, in, roles? }: a
 //                                         closing clip timed to end `in` s from now (a 重生's last clip ends with the
@@ -87,6 +89,46 @@ export function pointInPolygon(x, y, pts, n) {
     if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
   }
   return inside;
+}
+
+/** How far a bone may end from where it started and still count as the same pose (skeleton units / degrees). */
+const POSE_EPS = 5;
+
+/**
+ * Does animation `name` end in a pose of its own — does its last frame differ from its first? Sampled on a scratch
+ * skeleton of the same runtime (`Skeleton` = `spine.skeleton.constructor`; the same `apply` the state machine calls each
+ * frame), so it needs no flag carved into the manifest.
+ *
+ * A clip of that kind must be played ONCE and hold its last frame (`_play(name, false)`; the runtime clamps a finished
+ * non-looping track at its end, the mechanism `die()` uses). Played as a LOOP it snaps back to its first frame, and
+ * 维什戴尔's `Stun` is exactly that: its last 0.2 s drop the waist 98 skeleton units into the stunned crouch and hold
+ * it there, so a stunned one crouched and stood up again every 1 s clip (maintainer report, 2026-10-12; 引星棘刺 /
+ * W / 泡泡 likewise). A seamless cycle (浊心斯卡蒂 / 凯尔希·思衡托 / 迷迭香's `Stun`: every bone ends where it started)
+ * loops as before. false when the animation cannot be inspected — an unknown runtime shape keeps the old looping.
+ *
+ * @param {any} data the runtime SkeletonData (`spine.spineData`)
+ * @param {string} name the animation's name
+ * @param {any} Skeleton the runtime's Skeleton class (`spine.skeleton.constructor`)
+ */
+export function clipHoldsEnd(data, name, Skeleton) {
+  let anim = null;
+  try { anim = data?.findAnimation?.(name) ?? null; } catch { return false; }
+  if (!anim || typeof anim.apply !== 'function' || typeof Skeleton !== 'function' || !(Number(anim.duration) > 0)) return false;
+  try {
+    const sk = new Skeleton(data);
+    const sample = (t) => {
+      sk.setToSetupPose();
+      anim.apply(sk, 0, t, false, null, 1, 1, 1);
+      return (sk.bones || []).map((b) => [b.x, b.y, b.rotation, b.scaleX, b.scaleY]);
+    };
+    const first = sample(0);
+    const last = sample(Number(anim.duration));
+    if (!first.length || first.length !== last.length) return false;
+    for (let i = 0; i < first.length; i++) {
+      for (let k = 0; k < 5; k++) if (Math.abs(first[i][k] - last[i][k]) > POSE_EPS) return true;
+    }
+    return false;
+  } catch { return false; }
 }
 
 /**
@@ -235,7 +277,7 @@ export class SpineActor {
     }
     if (change && this.has(change)) this._change(change);
     else if (this.mode === 'base') this._play(this._baseName(), true);
-    else if (this.mode === 'stun' && this.has(this.roles.stun?.loop)) this._play(this.roles.stun.loop, true);
+    else if (this.mode === 'stun') this._playStun();
   }
 
   /**
@@ -262,8 +304,9 @@ export class SpineActor {
       this.attackUntil = this.clock + lead +
         Math.max(0, dur - (lead > 0 ? hit : start)) / tailTs;
     } else if (this.mode === 'stun') {
-      const name = this.has(this.roles.stun?.loop) ? this.roles.stun.loop : this._baseName();
-      this._play(name, true, { mix: 0 });
+      const s = this.roles.stun;
+      if (this.has(s?.loop)) this._play(s.loop, !this._stunHolds(s.loop), { mix: 0 });
+      else this._play(this._baseName(), true, { mix: 0 });
     } else if (this.mode === 'base') {
       this._play(this._baseName(), true, { mix: 0 });
     } else {
@@ -341,13 +384,32 @@ export class SpineActor {
   _enterStun() {
     if (this.mode === 'stun') return;
     this.mode = 'stun';
+    this._playStun();
+  }
+
+  /**
+   * The stun clip of the clip set in force, its Begin clip (if any) first. Played as a cycle when it loops seamlessly,
+   * else ONCE — its last frame then stays on the track (see clipHoldsEnd; the crouch-and-stand report). A stun role with
+   * no clip of its own freezes the current track instead (the stun family's `null`).
+   */
+  _playStun() {
     const s = this.roles.stun;
-    if (s && this.has(s.loop)) {
-      if (this.has(s.begin)) { this._play(s.begin, false); this._queue(s.loop, true); }
-      else this._play(s.loop, true);
-    } else {
-      this.frozen = true;
+    if (!s || !this.has(s.loop)) { this.frozen = true; return; }
+    this.frozen = false;
+    const loop = !this._stunHolds(s.loop);
+    if (this.has(s.begin)) { this._play(s.begin, false); this._queue(s.loop, loop); }
+    else this._play(s.loop, loop);
+  }
+
+  /** Whether the stun clip ends in a pose of its own (clipHoldsEnd), sampled once per clip name. */
+  _stunHolds(name) {
+    this._stunHoldCache ??= new Map();
+    let holds = this._stunHoldCache.get(name);
+    if (holds === undefined) {
+      holds = clipHoldsEnd(this.spine?.spineData, name, this.spine?.skeleton?.constructor);
+      this._stunHoldCache.set(name, holds);
     }
+    return holds;
   }
 
   _leaveStun() {

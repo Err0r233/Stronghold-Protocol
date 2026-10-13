@@ -362,7 +362,7 @@ in their official text and keep following the layer gains.
 | `rangeGrid` | `[[0,0]]` | Arts area (画卷 `[[0,0],[0,1]]`) |
 | `flavor` | | |
 
-## 6. `bands.json` — `{ [bandId]: Band }` (40)
+## 6. `bands.json` — `{ [bandId]: Band }` (41)
 
 | Field | Example | Meaning |
 |---|---|---|
@@ -372,11 +372,14 @@ in their official text and keep following the layer gains.
 | `effectId`, `effectName`, `desc`, `descRaw` | `"aceffect_band_21"`, `"重点监护"`, `"【重点监护】开始作战时…"` | |
 | `buffs[]`, `params` | `[{"key":"prep_finish_char_bond_add_layer","bb":{"layer":2},"bbStr":{}}]` | |
 | `victorCount`, `rewardModulus`, `unlockDesc` | `3`, `1`, `null` | |
-| `bondIds` | `["lateranoShip"]` (潘格尼尼) / `[]` | the bonds the strategy is built around (`shared/bandBonds.js`: the bond names in <…> of its text — the official note "在<X>部分干员缺席时体验可能不完整" among them — and the bond ids / bond pools of its blackboards, `pool` → choices.json `pools[pool].bond`); 9 bands are tied. The bot never picks, and the strategy draft marks 本局禁用, a band whose bond the mode switches off (DESIGN §21.26) |
+| `bondIds` | `["lateranoShip"]` (潘格尼尼) / `[]` | the bonds the strategy is built around (`shared/bandBonds.js`: the bond names in <…> of its text — the official note "在<X>部分干员缺席时体验可能不完整" among them — and the bond ids / bond pools of its blackboards, `pool` → choices.json `pools[pool].bond`); 10 bands are tied (the 40 official season strategies and the 自研 W, §19.13). The bot never picks, and the strategy draft marks 本局禁用, a band whose bond the mode switches off (DESIGN §21.26) |
 
-## 7. `effects.json` — `{ [effectId]: Effect }` (368: every effect of the season)
+The 41st band is the 自研 W (`band_w` / `aceffect_band_62` / `round_start_gain_chess_by_team_damage`,
+tools/content/custom.mjs): three cumulative 造成伤害 thresholds that hand out 巴别塔 operators (§19.13).
 
-Types: `BAND_INITIAL` 41, `BOND` 24, `EQUIP` 115, `ITEM` 6 (the 自研 专属装备 of §19: their effects are fiat rows and carry their own type so they never collide with the 115 official 装备 effects), `ENEMY_GAIN` 129 (悬赏), `BUFF_GAIN` 44 (战术决策: the official 43 + the 自研 凯尔希的盟誓, §19), `ENEMY` 6 (`aceffect_enemy_*` global modifiers), `CHAR_MAP` 4 (角色练度映射 — the 自持有 练度 tiers `aceffect_char_1…4`, 未精英化 / 精英阶段1 / 精英阶段2 / 精英阶段2-60级, in `autoChessData.cultivateEffectList` order: their `char_attribute_mul` buff — `atk` / `def` / `max_hp` 1, 1.05, 1.1 — is the unit's 练度 multiplier, `shared/potential.js cultivateMul`, 0.2.2).
+## 7. `effects.json` — `{ [effectId]: Effect }` (371: every effect of the season)
+
+Types: `BAND_INITIAL` 42, `BOND` 25, `EQUIP` 115, `ITEM` 6 (the 自研 专属装备 of §19: their effects are fiat rows and carry their own type so they never collide with the 115 official 装备 effects), `ENEMY_GAIN` 129 (悬赏), `BUFF_GAIN` 44 (战术决策: the official 43 + the 自研 凯尔希的盟誓, §19), `ENEMY` 6 (`aceffect_enemy_*` global modifiers), `CHAR_MAP` 4 (角色练度映射 — the 自持有 练度 tiers `aceffect_char_1…4`, 未精英化 / 精英阶段1 / 精英阶段2 / 精英阶段2-60级, in `autoChessData.cultivateEffectList` order: their `char_attribute_mul` buff — `atk` / `def` / `max_hp` 1, 1.05, 1.1 — is the unit's 练度 multiplier, `shared/potential.js cultivateMul`, 0.2.2).
 
 | Field | Example | Meaning |
 |---|---|---|
@@ -425,7 +428,7 @@ blackboards (transitively). Level = `randomEnemyAttributeDict[key].level` (0 for
 | `summons[]`, `inactiveIn[]`, `seasonOverride` | | spawned enemies; modes banning it; overridden fields |
 | `iconId`, `spine` | `"enemy_1422_lrsldr"` | asset ids |
 | `hitArea` | `{"w":4.95,"h":2.95,"dx":0,"dy":1}` (`enemy_9013_acstmk`) | **huge units only** (巨型单位, 7 keys: 假想敌：胄 ×2, 假想敌：管 ×2 — the 隐秘核心 one `dx` 1 —, 盐风主教昆图斯, 阿利斯泰尔，帝国余晖, “萨米的意志”): the hit rectangle, `w` tiles along the columns × `h` along the rows, centred on the unit's position moved `dx` columns right / `dy` rows up (sim/body.js; user playtest #5). Not in the game tables (the collider lives in the prefab): `tools/build-data.mjs HIT_AREAS` by `prefabKey`, from PRTS "巨型单位：受击判定区域为长4.95、宽2.95的长方形，向上偏移1.0" and PRTS盟约记录 (the season's 阿利斯泰尔 / “萨米的意志” versions); absent = a point. All 7 are also 自缚 + 无法被阻挡 (PRTS 天赋 — not a data field either: content/bosses.js `SELF_BOUND`) |
-| `staticBody` | `true` (`enemy_1005_yokai` 妖怪) | **静态刚体 only** (28 keys: every air unit of the mode except “炎佑” — 妖怪 ×3, 御4, 暴鸰, 法术大师 ×2, 寒霜, 帝国炮火先兆者 ×2, 枯朽之种, 枯朽萃聚使徒, 护障 ×2, 远眺, 愧悔魂灵圣杯, 假想敌：黑云, “斩胄之剑”, “破胄之锤”, 刺胄之弹, 未装配刀片, 防护背心, 冲击式施术单元, 节日气球, “萨科塔之翼 / 之眼 / 昂首” — plus the ground boss 盐风主教昆图斯): pushes and pulls never move it, the skills still hit it (sim `Battle._displaceable`; player report after 0.1.0). PRTS 特殊机制 静态刚体: "该单位的Unity刚体的刚体类型为部分静态（Kinematic）或静态（Static）…无法产生任何速度或移动…※是否为静态刚体与单位的行动方式无关". Not in the game tables (the rigidbody lives in the prefab): `tools/build-data.mjs STATIC_BODIES` by key, from the 天赋 "{{特殊机制|静态刚体}}" of each enemy's PRTS page (every enemy of the file, read 2026-10-03); absent = a dynamic body |
+| `staticBody` | `true` (`enemy_1005_yokai` 妖怪) | **静态刚体 only** (28 keys: every air unit of the mode except “炎佑” — 妖怪 ×3, 御4, 暴鸰, 法术大师 ×2, 寒霜, 帝国炮火先兆者 ×2, 枯朽之种, 枯朽萃聚使徒, 护障 ×2, 远眺, 愧悔魂灵圣杯, 假想敌：黑云, “斩胄之剑”, “破胄之锤”, 刺胄之弹, 未装配刀片, 防护背心, 冲击式施术单元, 节日气球, “萨科塔之翼 / 之眼 / 昂首” — plus the ground boss 盐风主教昆图斯): pushes and pulls never move it, the skills still hit it (sim `Battle._displaceable`; player report after 0.1.0). PRTS 特殊机制 静态刚体: "该单位的Unity刚体的刚体类型为部分静态（Kinematic）或静态（Static）…无法产生任何速度或移动…※是否为静态刚体与单位的行动方式无关". Not in the game tables (the rigidbody lives in the prefab): `tools/build-data.mjs STATIC_BODIES` by key, from the 天赋 "{{特殊机制\|静态刚体}}" of each enemy's PRTS page (every enemy of the file, read 2026-10-03); absent = a dynamic body |
 | `modelScale` | `0.5926` (`enemy_1005_yokai_3` 威龙) | official drawn size of the enemy's Spine model relative to the standard (user playtest #6): the battle prefab's transform scale down to its Spine renderer (Graphic × FaceSwitcher × Spine; SkeletonDataAsset.scale is 0.01 for every enemy skeleton) ÷ 0.27, the standard of 1454 of the client's 2147 enemy prefabs (2080 have exactly one Spine renderer) and of the operators' battle skins. The renderer multiplies `UNIT.modelScale` by it (render/units.js `enemyModelScale`). 125 keys (122 prefabs) carry one, from 0.5926 (威龙 0.16; 妖怪 0.7407, 寒霜 0.6667) to 2.2222 (青铜镜 / 青瓷茶器 0.6); absent = 1. Not in the game tables: `tools/build-data.mjs MODEL_SCALES` by `prefabKey`, read from the local client by `tools/local-extract/enemy_scales.py` |
 | `modelScaleY` | `1.263` (`enemy_1112_emppnt` 帝国炮火先兆者) | **vertically stretched models only** (2 keys, the 先兆者 pair): the official prefab's `Graphic` scale sy ÷ sx — 1.263 because the pair's scale is (0.19, 0.24, 0.24), i.e. the game draws them 26 % taller than `modelScale` (which only carries the horizontal product) implies. The renderer multiplies the skeleton's **Y** scale (and the bar height) by it (render/units.js `enemyModelScaleY`). Not in the game tables: `tools/build-data.mjs MODEL_STRETCH_Y`, read from the local client by `tools/local-extract/enemy_model_offsets.py` (a sweep of all 242 readable enemy prefabs found no other non-uniform one), docs/research/12 §3.1 (PR #211 by @xcdoge; the owner's decision of 2026-10-06) |
 | `mirrorX` | `true` (`enemy_1196_msfyin` 木制瑞印) | **mirrored models only** (1 key): the official prefab's `Graphic` X scale is negative (−0.4), so the game draws the authored model flipped; the size pipeline takes `abs(sx)`, and the renderer flips this model on top of the usual direction flip (render/units.js `mirrorX`). Same extraction as `modelScaleY` (`tools/build-data.mjs MIRRORED_PREFABS`) |
@@ -631,7 +634,7 @@ Glyph legend (`rows`):
 
 ## 16. Counts (current build)
 
-`chess 286 (122 visible; 310 selectable skills over the visible chess, 196 module choices over 139 non-DIY goldens; 84 PRESET / 55 NORMAL / 4 DIY base chess)`, `bonds 25`, `garrisons 277 (46 effect keys)`, `items 121`, `bands 40`, `effects 370`,
+`chess 286 (122 visible; 310 selectable skills over the visible chess, 196 module choices over 139 non-DIY goldens; 84 PRESET / 55 NORMAL / 4 DIY base chess)`, `bonds 25`, `garrisons 277 (46 effect keys)`, `items 121`, `bands 41`, `effects 371`,
 `enemies 249`, `factions 67 entries`, `waves 38`, `stages 13 (8 active)`, `bosses 10`, `tokens 24`, `choice events 109`,
 `bounty cards 129`, `tactic cards 44 (43 official + 凯尔希的盟誓 §19)`, `backups: 82 units (17 stand-ins, 65 owned-6★ picks; 238 forms), 36 自选 summons, 4 DIY slots, 15 / 9 prototype picks (tier 5 / 6), 65 owned-6★ picks (7 collab operators excluded)`, potential (§2.3): `274 chess records, 195 backup forms with potDown; 297 + 249 + 19 chained talent entries (chess, backups, tokens)`.
 
@@ -784,7 +787,7 @@ One block goes further than adding content: 克莱门莎's four ruled fields (§
 official mode** — the maintainer's 裁决 (a) of 2026-10-13, applied after every other merge so that an official row
 cannot displace them. Everything else here yields to the official table (add-if-absent).
 
-Three blocks of equal standing:
+Four blocks of equal standing:
 
 - **巴别塔** — the 自研 core bond (`babelShip`, §3: the 24th bond, `isCore`, `powerIdList ['babel']`, `identifier` 24,
   weight 10, 一档 3 / 二档 6), its effect (`bondeffect_babel` + one `env_gbuff_new` buff), the 特质 of its members
@@ -809,6 +812,11 @@ Three blocks of equal standing:
   trait pair was later replaced by `garrison_178_a/_b` (the 元素 design, §19.5); the committed pair stays in the
   dataset through `garrisonKeep`. **Her four ruled fields are an EXPLICIT OVERRIDE of the official mode** — the one
   block that deliberately beats an official row rather than yielding to it: §19.9.
+- **W** (`band_w`) — the 自研 策略 of the 巴别塔 layer (maintainer, 2026-10-14; 特蕾西娅 【传承】 until that day's
+  rename): the 41st band, whose three
+  cumulative 造成伤害 thresholds pay **a random tier-3** 巴别塔 operator / **a random tier-4-or-above** one (which is how
+  the tier-6 维什戴尔 can land there too) / 维什戴尔, at the prep of the round after each one. One `BAND_INITIAL` effect
+  with one buff and its own handler, no chess, bond or item: §19.13. `totalHp` 24 is the maintainer's own figure.
 
 ### 19.1 The 11 特质 of the 巴别塔 members (final, 2026-10-12)
 
@@ -824,8 +832,8 @@ caps live in the blackboard (`bb`), so a retune is a `tools/content/custom.mjs` 
 | 阿斯卡纶 每累计造成伤害 | `garrison_166_a/_b` | `check_damage` 4000 | 【巴别塔】【突袭】各 +2 / +4 | 6 / 12 |
 | 可露希尔 `<获得时>` 自身盟约 | `garrison_167_a/_b` | — | +4 / +8 | — |
 | 赫德雷 【巴别塔】每 3 层攻防 | `garrison_168_a/_b` | `divide_num` 3 | 攻防 +1 % / +2 % | — |
-| 逻各斯 每累计造成伤害 | `garrison_169_a/_b` | `check_damage` 5000 | 【巴别塔】【奥术】各 +6 / +8 | 24 / 32 |
-| 维什戴尔 攻防固定 + 【巴别塔】每 3 层 | `garrison_170_a/_b` | `base_atk`/`base_max_hp` 0.2 / 0.4 + `divide_num` 3 | 攻击力和生命值 +20 % / +40 % **且**每 3 层 +1 % / +2 %（一行两个半边） | — |
+| 逻各斯 每累计造成伤害 | `garrison_169_a/_b` | `check_damage` 5000 | 【巴别塔】【奥术】【精准】各 +6 / +8（目标表 `babelShip,arcaneShip,preciShip`，§19.11） | 24 / 32 |
+| 维什戴尔 攻防固定 + 【巴别塔】【精准】每 3 层 | `garrison_170_a/_b` | `base_atk`/`base_max_hp` 0.2 / 0.4 + `divide_num` 3 | 攻击力和生命值 +20 % / +40 % **且**【巴别塔】【精准】层数合计每 3 层 +1 % / +2 %（一行两个半边，`bond_id` `babelShip,preciShip`，§19.11） | — |
 | 华法琳 `<战斗开始时>` 身前 | official `garrison_72_a/_b` → `95_a/_b` | — | 自身盟约 +1 / +2 per skill | **7 / 14**（官方值；自研的 4 / 8 覆盖已撤销，§19.8） |
 | 魔王 放大身前一格的加层 | official `garrison_59_a/_b` | — | +1 / +2 per gain | — |
 | 伊内丝 `<休整期结束时>` 自身盟约 | official `garrison_104_a/_b` | — | +5 / +10 | — |
@@ -991,7 +999,11 @@ is already a white glyph on transparency and 54×54, so the step is alpha-crop +
 | `items` | `act.trapChessDataDict` | `buildItems` (the item row: identifier, prices, `upgradeChessId`, `giveBondId`, `canGiveBond`, `itemType`, `trapDuration`) |
 | `itemShopRows` | `act.trapShopChessDatas` | `buildItems` (tier, `shopLevelSortId`, `hideInShop`) |
 | `itemEffects`, `itemEffectBuffs` | `act.effectInfoDataDict` / `effectBuffInfoDataDict` | `buildEffects` → `buildItems` (`desc` / `buffs` / `params`) |
+| `band`, `bandMeta` | `act.bandDataListDict` / `ac.bandDataDict` | `buildBands` (`desc` = the band row's `bandDesc`, `effectName` = the effect's) |
+| `bandEffect`, `bandEffectBuffs` | `act.effectInfoDataDict` / `effectBuffInfoDataDict` | `buildEffects` → `buildBands` (the band's `buffs` / `params`, §19.13) |
 | `itemTraps` | `charTable` | `buildItems` (the item's `name`) and the client item card (`iconId` = `trapId` = the trap charId) |
+| `band`, `bandMeta` | `act.bandDataListDict` / `ac.bandDataDict` | `buildBands` (`desc` = the row's `bandDesc`, `name` / `iconId` / `unlockDesc` from `bandMeta`) |
+| `bandEffect`, `bandEffectBuffs` | `act.effectInfoDataDict` / `effectBuffInfoDataDict` | `buildEffects` → `buildBands` (`buffs` / `params`; `effectName` = the effect's `name`, §19.13) |
 | `researchItems` | `ctx.research.items.items` (`docs/research/04-items.json`) | `buildItems` (category / kind / implFormula / flavor / rangeGrid — the optional 04 annotation) |
 | `chess`, `elementChess`, `clemensa.chess` | `act.charChessDataDict` | `buildChess` |
 | `shopRows`, `elementShopRows`, `clemensa.shopRows` | `act.charShopChessDatas` | `buildChess` (tier, price row, backup fields) |
@@ -1010,12 +1022,14 @@ the official table already has and cannot be expressed that way; they are the pl
 official row:
 
 - `chessBonds` (and its 元素 twin `elementChessBonds`) — a UNION with the row's `bondIds`; 巴别塔 and 元素 are only ever
-  added, never removed. A FIAT chess whose list must LOSE a bond (克莱门莎, 2026-10-12) cannot use it: her own record
-  (`clemensa.chess`) carries the exact final `bondIds`, `buildChess` copies that array verbatim, and neither union table
-  names her.
+  added, never removed. A FIAT chess whose list must LOSE a bond cannot use it: 克莱门莎's 不屈 (2026-10-12) and
+  阿斯卡纶's 独行 (2026-10-13, §19.10) are the two users — each one's own record (`clemensa.chess` /
+  the `members` row of `custom.mjs`) carries the exact final `bondIds`, `buildChess` copies that array verbatim, and
+  neither union table names it.
 - `bondChessIds` — the same UNION on an official bond's `chessIdList`: a fiat chess that carries an official bond must
   appear in that bond's member list, because `buildBonds` derives `members` / `visibleMembers` from it and the bond
-  panel lists its 成员 from those (the mirror invariant `test/data.test.js` asserts).
+  panel lists its 成员 from those (the mirror invariant `test/data.test.js` asserts). The mirror expresses a REMOVAL the
+  same way — by NOT naming the chess any more (§19.10's soloShip).
 - `chessGarrisons` (and its 元素 twin `elementChessGarrisons`) — REPLACES the row's `garrisonIds`: the design overrides
   华法琳's trait cap — **withdrawn again on 2026-10-13 (§19.8)**, her row now points at the official pair — and extends
   菲莱 / 烛煌 / 妮芙's own rows, so their old `garrisonIds` give way to the module's pair instead of being
@@ -1096,7 +1110,7 @@ blackboard. `docs/research/02-bonds.json`'s 巴别塔 roster and its `layerSourc
 granted row **95**, the same convention 精准's `garrison_96` uses).
 
 Consequences of the 2026-10-13 batch: `garrisons` **281 → 277** (the four withdrawn fiat rows; the official `72` / `95`
-rows were already in the dataset), `chess` 286 / visible 122 / `bonds` 25 / `items` 121 / `bands` 40 / `effects` 370 /
+rows were already in the dataset), `chess` 286 / visible 122 / `bonds` 25 / `items` 121 / `bands` 41 / `effects` 371 /
 `backups` (`ownedPool` 65, 82 units, 238 forms) all unchanged — and every golden family that moved, moved for the
 default skill: `docs/history/0.2.4.md` §29.24.
 
@@ -1139,6 +1153,198 @@ official character row (upstream spells it "Clementia"). Every build reports
 warning is **expected, not an anomaly**, and it is one of the two warnings a 0.2.5 tree with the research layer enabled
 produces (the other is the dropped `act1autochess_m01` research annotation). It is why the official appellation never
 reaches `data/chess.json`.
+
+### 19.10 The 盟约归属 rulings of 2026-10-13 — 阿斯卡纶 leaves 独行, 逻各斯 / 维什戴尔 gain 精准
+
+Two membership changes the maintainer ruled on 2026-10-13 (**his 实测**, not an official-table detail; the `bonds` /
+member-list channel of §19.7 only). Nothing about either bond moves: no threshold, no `isCore`, no `modeBonds` entry
+and no count of the dataset — only who belongs to what.
+
+**① 阿斯卡纶 (self-authored chess `chess_char_3_05_babel_a/_b`) leaves 独行 `soloShip`.** Her `bonds` goes from
+`['babelShip','raidShip','soloShip']` to the **exact final** `['babelShip','raidShip']`, and `bondChessIds.soloShip`
+simply stops naming her two ids — the removal path §19.7 documents for a fiat chess (a UNION cannot take a bond back;
+克莱门莎's 不屈 is the other user). The maintainer's motive, recorded here rather than in a mechanism: the change takes
+away 独行's own bonuses (its ×1.6 ATK / HP and its +15 SP on deploy), and 独行 was raising her ATK enough to make her the
+likely 【指挥】 — whose fixed aura sits badly on a 突袭 unit that sprints across the field. That is **not** an expectation
+about the election: 【指挥】 is purely the highest-ATK 巴别塔 member at battle start (`server/sim/content/bonds/core.js`),
+she may still be chosen, and nothing here or in the engine restricts it. She keeps 巴别塔 and 突袭.
+
+**② 逻各斯 (`chess_char_5_07_babel_a/_b`) and 维什戴尔 (`chess_char_6_04_babel_a/_b`) gain the ADD-ON bond 精准
+`preciShip`**, appended at the END of their own lists (逻各斯 `['babelShip','arcaneShip','preciShip']`, 维什戴尔
+`['babelShip','preciShip']`) and mirrored into the official member list through the `bondChessIds.preciShip` UNION.
+精准 is an add-on bond of the same layer as 巴别塔 / 元素 (`isCore` false, `bondType REGULAR`), never a core one.
+
+| bond | member list (`members` / `visibleMembers`) before → after | the chess that moved |
+|---|---|---|
+| `soloShip` | 7 / 7 → **6 / 6** (thresholds `[1]`, `count_threshold_downward`, `maxCount` 1 — unchanged) | −`chess_char_3_05_babel_a`, −`chess_char_3_05_babel_b` |
+| `preciShip` | 12 / 12 → **14 / 14** (thresholds `[2, 3]`, `count_threshold_upward` — unchanged) | +`chess_char_5_07_babel_a/_b`, +`chess_char_6_04_babel_a/_b` |
+
+`members` / `visibleMembers` carry the NORMAL ids only (`buildBonds` drops the elites), so the table above counts normal
+records; both forms of every affected chess carry the bond in `data/chess.json` `bonds`. Every other invariant of §19
+stands: `chess` 286 (122 visible), `bonds` 25, `garrisons` 277, `items` 121, `diyOwnedPicks` 65, `babelShip` 13 / 11,
+`elementShip` 8 / 7 and 克莱门莎's `['egirShip','swiftShip','elementShip']` all unchanged; `checkUnitFormParity` reports
+no error. What moves is the simulation: the golden corpus, family by family, in `docs/history/0.2.5.md` §30.32 (13
+`roster` + 5 `bonds` + 5 `fields` + 10 `matches` scenarios, none added or removed, isolated per change).
+
+### 19.11 The two 特质 target-list extensions of 2026-10-13 — 逻各斯 pays 精准, 维什戴尔 counts it
+
+The follow-up the maintainer appended to §19.10 in the same sitting: now that 逻各斯 and 维什戴尔 **are** 精准 members,
+their 特质 read the bond too. Both are TARGET-LIST edits inside existing rows (`tools/content/custom.mjs` +
+`applyCustom`): no new garrison id, no new handler, no `bb` number, and no effect on who belongs to what.
+
+| 特质 | ids | field | before → after |
+|---|---|---|---|
+| 逻各斯 `<战斗中>` 每累计造成 5000 点伤害 | `garrison_169_a/_b` | `bbStr.bond_id` | `babelShip,arcaneShip` → **`babelShip,arcaneShip,preciShip`** |
+| 同上, text | `garrison_169_a/_b` | `desc` / `descRaw` | 【巴别塔】【奥术】→ **【巴别塔】【奥术】【精准】** |
+| 维什戴尔 【巴别塔】每 3 层攻防 | `garrison_170_a/_b` | `bbStr.bond_id` | `babelShip` → **`babelShip,preciShip`** |
+| 同上, text | `garrison_170_a/_b` | `desc` / `descRaw` | 【巴别塔】每叠加3层 → **【巴别塔】【精准】每叠加3层** |
+
+**① 逻各斯 — an ADD_BOND target list.** `act1autochess_gar_event_dealdamage` pays every bond listed in `bond_id` that
+is active for the owner, once per `check_damage` 5000 of damage actually dealt to an enemy, capped per id at
+`max_add_count_per_battle` 24 / 32. The three ids are written in the order of the sentence. `check_damage`,
+`bond_add_count` and `max_add_count_per_battle` are untouched, and so is the 阿斯卡纶 row (`garrison_166_a/_b`,
+`babelShip,raidShip`) that shares the handler. An INACTIVE listed bond is skipped as before (that is `bondActive`, not a
+new rule).
+
+**② 维什戴尔 — a per-layer judgement shared by two bonds.** `act1autochess_gar_eff_attrByBond` reads its layer count
+through `stepsOf()` (`server/sim/content/garrisons/battle.js`), which **sums** the layers of every listed ACTIVE bond and
+then divides by `divide_num` 3. Two ids therefore mean 「【巴别塔】【精准】层数合计每 3 层」, not "the higher of the two":
+巴别塔 6 + 精准 3 = 9 layers = 3 steps. The row stays the ONE merged 作战能力 line the maintainer ruled on 2026-10-12
+(fixed `base_atk` / `base_max_hp` 0.2 / 0.4 plus the per-step 0.01 / 0.02, one id, one 直接乘算 bucket) — no second row,
+no `base_*` change and no `divide_num` change. 赫德雷's `garrison_168_a/_b` keeps the 巴别塔-only list.
+
+**Rebuild.** The maintainer's own command (`HTTPS_PROXY` + `node tools/build-data.mjs --refresh`), the same two known
+warning lines only: `chess` 286 (122 visible), `bonds` 25, `garrisons` 277, `items` 121, `bands` 41, `effects` 371,
+`diyOwnedPicks` 65, `babelShip` 13 / 11, `elementShip` 8 / 7, `soloShip` 6 / 6, `preciShip` 14 / 14, 克莱门莎
+`['egirShip','swiftShip','elementShip']`, `checkUnitFormParity` clean. **No dataset count moves**: the change lives in two
+existing rows' text and target lists. What moves is the simulation — `docs/history/0.2.5.md` §30.33 (10 `roster` +
+5 `fields` + 5 `matches`, none added or removed, isolated per change).
+
+### 19.12 The last copy + numbers batch of 2026-10-13 — 巴别塔's blackboard, the rider's multiplier and a reader bug
+
+The maintainer's final pass over the two 自研 bonds (`tools/content/custom.mjs` + `server/sim/content/bonds/core.js`).
+It moves four things and **no dataset count** (the rebuild's invariants are §19.10's, unchanged).
+
+**① 巴别塔 blackboard (`data/bonds.json` `babelShip.bb`, the `env_gbuff_new` buff `act2autochess_bond_eff_babel`).**
+Every number the simulation reads is a key of this one blackboard, so a retune is a `custom.mjs` edit plus a rebuild:
+
+| key | before → after | what it drives |
+|---|---|---|
+| `base_atk` / `atk_per_stack` | 0.12 / 0.008 (unchanged) | 一档: members ATK ×(1 + 0.12 + 0.008·L) |
+| `base_max_hp` / `max_hp_per_stack` | 0.12 / 0.008 (unchanged) | 一档: the same on max HP (双属性) |
+| `other_bond_kind_atk` | 0.02 → **0.04** | 一档 rider: ATK +4 % per distinct OTHER bond kind a member carries |
+| `other_bond_kind_atk_cap` | 0.10 → **0.20** | the rider's ceiling (5 kinds; 独立加成、最终乘算, ATK only) |
+| `base_damage_scale_show` | 1.10 → **1.20** | 二档 指挥: allies' damage ×(1.20 + 0.0008·L) |
+| `damage_scale_per_stack` | 0.0007 → **0.0008** | the same slope (999 layers → 199.92 %) |
+| `damage_scale_cap` | 1.80 → **2.00** | the same ceiling (200 %) |
+| `base_def_penetrate` / `def_penetrate_per_stack` | 0.20 / 0.0004 (unchanged) | 二档: DEF ignore, capped by `penetrate_cap` 0.60 |
+| `base_res_penetrate` / `res_penetrate_per_stack` | 0.20 / 0.0004 (unchanged) | 二档: RES ignore, the same cap |
+
+**② The +10 % / +20 % copy conflict is settled at +20 %.** The 一档 copy used to read 「（最高+10%）」 while the table
+（`docs/protocol.md`:20) said 「上限 +20%」 — the maintainer ruled for the **table**: the bb doubles to 0.04/0.20, the
+copy and `docs/protocol.md`:15 both read 「（最高+20%）」, and nothing stays conditional.
+
+**③ The rider is an independent FINAL multiplier, not a term of the 直接乘算 bucket.** `installBabel` writes
+`bond:babel:l1` (`S.directMods({ atk, hp })` ⇒ `atkPct`/`hpPct`) and `bond:babel:rider` (`{ atkMul: 1 + rider }`) as two
+`passiveBuff` keys, so ATK is `((base + Σflat)(1 + ΣatkPct) + ΣatkFinal) × (1 + rider)` (`server/sim/units.js`
+`_recalc`) — at 0 layers with 4 kinds, `1000 × 1.12 × 1.16 = 1299.2` (the old additive writing read 1280). Both keys
+are `refresh: 'replace'` passives (idempotent, no re-entry); the refresh rides the existing `layerGain →
+battle.after(0, refreshL1)` + `deploy` rhythm, and the rider buff is removed when the counted kinds fall to zero.
+ATK only — max HP keeps the main effect alone.
+
+**④ A reader bug fixed: the tier-2 aura had never run.** `installBabel`'s `hit` handler asked the blackboard for
+`cmd_damage_scale_base` / `cmd_damage_scale_per_stack` / `cmd_damage_scale_cap` / `cmd_penetrate_base` /
+`cmd_penetrate_per_stack` / `cmd_penetrate_cap` — names **no record ever carried**, so `num()` fell back to its
+defaults: damage ×1.00 and penetration 0 for the whole 二档 aura (the 一档 main effect and the rider were unaffected —
+they always read existing keys). The reader now uses the data's keys (the `①` table), with a module-comment note that
+`tools/content/custom.mjs` / `data/bonds.json` is the authoritative side. DEF and RES are still taken as the
+**strongest single source** against 精准's own 30 %: the damage pipeline adds the source's stat-level ignore back on top
+of the instance's (`server/sim/damage.js` `landedPreShield`), so the handler now writes only the part above the source's
+own value (`pen − s.defIgnorePct`) — the pair lands as `max(stat, pen)`, never 30 % + 30 % = 60 %.
+
+**Copy.** Both bonds keep their numbers but stop exposing the layer ceilings in the text: 巴别塔's 二档 parentheses drop
+「最高180% / 最高60%」 and 元素's two drop 「150层达到最大增益 / 200层达到最大增益」 — every one of them now reads
+「（受层数影响）」, while `damage_scale_cap` 2.00 / `penetrate_cap` 0.60 / `element_damage_cap_layers` 150 /
+`tier2_cap_layers` 200 keep clamping inside the formulas. `data/bonds.json` `desc` / `descRaw` / `effectDesc` carry the
+new text of both bonds (the 二档 sentence also moves to the maintainer's phrasing: 「【指挥】及其周围八格内的友方干员…
+。【指挥】被击倒时，【指挥】移交给…」).
+
+**Rebuild and invariants.** `node tools/build-data.mjs --refresh` prints the same two known warning lines;
+`chess` 286 (122 visible), `bonds` 25, `garrisons` 277, `items` 121, `diyOwnedPicks` 65, `babelShip` 13 / 11,
+`elementShip` 8 / 7, `soloShip` 6 / 6, `preciShip` 14 / 14, 克莱门莎 `['egirShip','swiftShip','elementShip']` +
+`['garrison_178_a']` + `backup.skillIndex` 1, `checkUnitFormParity` clean. Tests: `test/content/bonds_core.test.js`
+gained six 巴别塔 cases (一档 formula + live layers, the rider's cap and its multiplicative-vs-additive numbers, the
+二档 scale inside/outside the eight tiles, the election, the deferred hand-over + revive, and the penetration max
+against 精准). Golden: `docs/history/0.2.5.md` §30.34.
+
+### 19.13 W 【滥炸无休】 — the 自研 策略 (maintainer, 2026-10-14)
+
+**What it is.** The season's 41st strategy and the first 自研 band: **W** (`band_w`, `iconId` **`icon_w`**, `sortId` 41,
+`modeTypeList` SINGLE+MULTI, **`totalHp` 24 — the maintainer's own figure (维护者定值), not a value picked out of the
+family's range**), whose one `BAND_INITIAL` effect (`aceffect_band_62`, 滥炸无休) carries one buff
+(`round_start_gain_chess_by_team_damage`). A band is **three official
+tables** — `act.bandDataListDict` (the row), `ac.bandDataDict` (name / icon / unlock) and the effect pair — all three
+merged by `applyCustom` add-if-absent (§19.7), so it adds **no** chess, bond or item to the dataset.
+
+**The name.** The maintainer renamed the band on 2026-10-14, before its release: id `band_theresis` → **`band_w`**,
+iconId `icon_theresis` → **`icon_w`**, 名称 特蕾西娅 → **`W`**, 效果名 传承 → **滥炸无休** (EN *Relentless
+Bombardment*). Only names moved — `sortId` 41, `totalHp` 24, `modeTypeList`, the three thresholds, `bbStr.reward`, the
+latch logic and the `<巴别塔>` note are untouched (docs/history/0.2.5.md §30.35b). `band_w` / `icon_w` collide with
+nothing in the official tables: not the 40 `bandDataListDict` rows, not the 41 `bandDataDict` rows (the extra one is the
+spare `band_zumama`), not `data/bands.json` and not `public/assets/band/`. The id follows the convention the official
+data itself uses where a charId token is opaque — `band_pith` (`char_509_acast`) and `band_clementia`
+(`char_4231_clemnt`) name the operator, not the token; W's charId is `char_113_cqbw`.
+
+**The copy.** The maintainer reworded both text bodies the same day (2026-10-14, docs/history/0.2.5.md §30.35c) and
+nothing else: `bandDesc` / `effectDesc` now read 「累计对敌人造成10万、30万、85万点伤害后，在下一回合休整期开始时，分别获得
+一名随机三阶【巴别塔】干员、一名随机四阶及以上【巴别塔】干员、<维什戴尔>」 (was 「…点伤害**时**，在**跨过该伤害的**下一回合
+休整期开始时…」 / 「1名…」), with the official 「在<巴别塔>部分干员缺席时体验可能不完整」 note unchanged on its own line. The
+rich text keeps the **band family's** shape — the main sentence plain, only the note inside `<@ba.vdown>…</>`, exactly
+as `aceffect_band_59` (贾维) writes it; **no `<@ba.vup>`**, because none of the 41 official `aceffect_band_*`
+`effectDesc` values highlights a number (the garrison family does, which is why the 自研 `garrison_170` wraps its own —
+docs/history/0.2.4.md §29.17). `<维什戴尔>` names an operator the way the shipped `band_amedic` names `<预备干员-医疗>` / `<Touch>`: plain angle
+brackets, no tag (the rich-text vocabulary has no operator tag); `shared/bandBonds.js` still resolves a bracketed name
+against the bond names only, so `bondIds` stays `["babelShip"]` (the naming bracket is inert; the note's `<巴别塔>` is
+what derives it).
+
+**The rule.** The handler reads `ctx.stats().dmgDealt` — the match's own **team** counter, i.e. every point of damage
+the player, its teammates and their tokens dealt (physical / arts / true / elemental; 元素量表填充, 流失 and friendly
+fire are not in it) as `match/settle.js` and `match/bossRounds.js` accumulate it — and pays the team's three ascending
+thresholds once each, at the prep start of the round **after** the battle that crossed one (`onRoundStart`;
+server/sim/content/bands/meta.js `K.round_start_gain_chess_by_team_damage`).
+
+| threshold (`bb`) | reward (`bbStr.reward`, position 1–3) | what the handler does |
+|---|---|---|
+| `dmg_dealt_1` **100 000** | `babel3` | `rollChess({ bond: bbStr.bond, tier: 3 })` — the two visible tier-3 【巴别塔】 operators are 阿斯卡纶 / 可露希尔 |
+| `dmg_dealt_2` **300 000** | `babel4plus` | `rollChess({ bond: bbStr.bond, minTier: 4 })` — copy-weighted over all six visible T4+ 【巴别塔】 operators: 伊内丝 / 魔王 / 华法琳 (T4, 16 copies each), 赫德雷 / 逻各斯 (T5, 8 each) **and the tier-6 维什戴尔** (5) |
+| `dmg_dealt_3` **850 000** | `chess_char_6_04_babel_a` (维什戴尔) | `grantChess(id, { requirePool: false })` |
+
+`bbStr.reward` is a comma list decoded position by position against the three thresholds, so the reward of a threshold
+is data: the reserved word `babel<n>` means 「1 random tier-`n` 【巴别塔】 operator」, `babel<n>plus` means 「1 random
+tier-`n`-or-above one」 (the `minTier` floor the pool roll gained for this — `server/match/pool.js` `roll`, surfaced as
+`ctx.rollChess`'s `minTier`), and every other entry is a chess id. `bb.count` is the copies granted per threshold (1).
+**Hidden chess never enter either roll**: the pool is built from `visibleChess` (visible, non-golden, non-DIY, non-hidden
+— `server/match/gamedata.js`), so the hidden T5 华法琳 / 魔王 variants are out while the T6 维什戴尔 is in.
+
+**Two deliberate mechanics.** ① A **fixed** reward passes `requirePool: false`: 维什戴尔 is a tier-6 chess whose pool
+holds only 5 copies, so a four-player match can be out of them and 「白送」 must land anyway (`server/match/effectsMeta.js`
+grantChess's `pool.has(base) && pool.left(base) < 1` guard). ② The **two random rolls are pool-bound** on purpose — they
+ask `ctx.rollChess`, and an empty pool leaves that threshold's latch unset so the next prep tries again (logged, never
+lost). Each threshold's latch is a counter (`band:<bandId>:t1|t2|t3`, the 潘格尼尼 precedent).
+
+**Short modes.** A 训练 / 娱乐 match whose last round crosses a threshold never pays it (no RESULT flush, no difficulty
+factor): the maintainer's decision, 2026-10-14. 标准 crosses the three thresholds around R5 / R7 / R10 and pays at the
+R6 / R8 / R11 preps.
+
+**Icon — the maintainer's own art.** No official band card exists for a 自研 策略: upstream ships 40 `icon_*.png` under
+`…/[uc]autochesscommon/arts/bandicon/` and has no card for a band that is not in its tables. `public/assets/band/band_w.png`
+is therefore **maintainer-provided local art** (维护者自制, 2026-10-14) — a 768×768 card face the maintainer drew, scaled
+to **180×180** (LANCZOS) with the shipped cards' measured silhouette applied as its alpha (8-bit RGBA, 50 456 B; the
+silhouette is the per-pixel maximum alpha of the 40 official cards, so the new card fades to transparent at its corners
+and edges exactly as they do). `docs/research/07-assets.json` `bands.band_w` records it as `maintainer-provided local art`
+with **no upstream URL**; the file name (180×180 PNG with alpha, `icon_w`, `public/assets/band/band_w.png`) is the spec
+every other band card uses. The icon is a static file, not a `data/*.json` field, so replacing it needs no data rebuild —
+only `node tools/fetch-assets.mjs --asset-source=mirror --add-only` to re-point `data/assets.json` `bands.band_w`.
 
 ### Acquisition subsets corrected in 0.2.5 (§30.2)
 

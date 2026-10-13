@@ -30,7 +30,7 @@ bond.
 
 ### 1.1 一档 — 2 distinct 【元素】 operators on the board
 
-> **【元素】干员造成的元素损伤提升（受层数影响，150层达到最大增益）**
+> **【元素】干员造成的元素损伤提升（受层数影响）**
 
 | item | value |
 |---|---|
@@ -40,11 +40,15 @@ bond.
 The slope is data (`element_damage_base` 0.10, `element_damage_per_stack` 0.003, `element_damage_cap_layers` 150); the
 cap is applied **inside the formula** (`min(L, 150)`), so 151 or 300 layers give the same +55 %.
 
+The in-game text no longer states the ceiling (maintainer, 2026-10-13, the same batch as 巴别塔's two brackets): the
+parenthesis reads 「（受层数影响）」 alone, while the clamp stays exactly where it was — in the formula and in the
+blackboard. No number moved.
+
 ### 1.2 二档 — 3 distinct 【元素】 operators: one clause per element burst
 
 All four clauses share the design's **200-layer clamp** (`tier2_cap_layers`), i.e. `L = min(L, 200)`; the per-stack
 slopes are derived from the two endpoints the design names (`slope(base, top, cap) = (top − base) / cap`), so the
-endpoints are the only numbers typed in the source.
+endpoints are the only numbers typed in the source. The tier-2 parenthesis likewise reads 「（受层数影响）」 only.
 
 | element | clause | at 0 layers | at 200 layers |
 |---|---|---|---|
@@ -262,3 +266,4 @@ through their existing per-effect-key sweeps, and the 妮芙 case additionally a
 | v1.1 | 2026-10-12 | Maintainer's two rulings (§5 item 9, §2): 克莱门莎's bonds and trait targets become 阿戈尔 / 迅捷 / 元素 (不屈 removed, exact `bondIds` on the fiat record), and 妮芙's 元素 clause requires an activated bond like 迅捷 (her `BOND_REQUIRE_OVERRIDE` entry removed, §5 item 4). |
 | v1.2 | 2026-10-13 | Maintainer's default-skill batch (§2): 珊比 → S2 「慢慢走~」 and 克莱门莎 → S2 「风暴潮」, on both records of each pair (`defaultSkillIndex` = `backupCharSkillIndex`). Both rows are this module's own, so no official row is overridden; the other five members keep S1. |
 | v1.3 | 2026-10-13 | Maintainer 裁决 (a) (§5 item 10): 克莱门莎 becomes an EXPLICIT OVERRIDE of the official mode. The official 0.2.5 data ships her character and her 盟约策略 but no chess row, so `clemensa.design` + `applyClemensaDesign` force her four ruled fields (`bondIds`, `garrisonIds`, both skill indices) onto whichever row the chess tables hold, after every other merge; her `appellation= 'Clemensa'` fiat correction stays. Her ids are dropped from `elementChessGarrisons` so the design block is the single statement of the pair. |
+| v1.4 | 2026-10-13 | Text only (maintainer's last copy+numbers batch): the two parentheses drop their ceilings — 「（受层数影响，150层达到最大增益）」 (一档) and 「（受层数影响，200层达到最大增益）」 (二档) now read 「（受层数影响）」 (both in `bond.desc` / `descRaw` and in the in-battle `effectDesc`). **No number moves**: `element_damage_cap_layers` 150 and `tier2_cap_layers` 200 still clamp inside the formulas. 巴别塔's own brackets lose their 「最高180% / 最高60%」 in the same batch (`docs/research/15-babel-bond.md` v2.6, `docs/DATA.md` §19.12). |

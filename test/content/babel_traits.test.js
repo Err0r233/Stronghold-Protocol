@@ -4,7 +4,7 @@
 //
 //   act1autochess_gar_event_takedamage   奥达 garrison_163_a/_b       每累计承受 800 点伤害 → 巴别塔 +1 / +2 (cap 8 / 16)
 //   act1autochess_gar_event_healamount   阿米娅·医疗 garrison_164_a/_b 每累计实际治疗 1200 点 → 巴别塔 / 奥术 各 +2 / +4 (cap 10 / 20)
-//   act1autochess_gar_event_dealdamage   逻各斯 garrison_169_a/_b     每累计造成 5000 点伤害 → 巴别塔 / 奥术 各 +6 / +8 (cap 24 / 32)
+//   act1autochess_gar_event_dealdamage   逻各斯 garrison_169_a/_b     每累计造成 5000 点伤害 → 巴别塔 / 奥术 / 精准 各 +6 / +8 (cap 24 / 32)
 //                                        阿斯卡纶 garrison_166_a/_b   每累计造成 4000 点伤害 → 巴别塔 / 突袭 各 +2 / +4 (cap 6 / 12)
 //
 // Every number below comes from data/garrisons.json (bb.check_hp / bb.check_damage / bb.bond_add_count /
@@ -200,8 +200,8 @@ test('dealdamage 169/166: every check_damage of ACTUAL damage dealt adds both bo
   for (const [gid, per, cap, check, bonds] of [
     ['garrison_166_a', 2, 6, 4000, ['babelShip', 'raidShip']],
     ['garrison_166_b', 4, 12, 4000, ['babelShip', 'raidShip']],
-    ['garrison_169_a', 6, 24, 5000, ['babelShip', 'arcaneShip']],
-    ['garrison_169_b', 8, 32, 5000, ['babelShip', 'arcaneShip']],
+    ['garrison_169_a', 6, 24, 5000, ['babelShip', 'arcaneShip', 'preciShip']],
+    ['garrison_169_b', 8, 32, 5000, ['babelShip', 'arcaneShip', 'preciShip']],
   ]) {
     const bb = GR(gid).bb;
     assert.deepEqual([bb.check_damage, bb.bond_add_count, bb.max_add_count_per_battle], [check, per, cap], `${gid}: the data`);
@@ -259,14 +259,15 @@ test('dealdamage: friendly fire, self damage and 无来源 damage never count; o
 });
 
 test('dealdamage 169/166: an inactive bond takes nothing, and the pair fires from one handler', () => {
-  // 巴别塔 off, 奥术 on: only the active bond takes its share
+  // 巴别塔 off, 奥术 and 精准 on: only the ACTIVE bonds take their share — 169's target list is 巴别塔 / 奥术 / 精准
+  // since the maintainer's ruling of 2026-10-13 (the same ruling that gave 逻各斯 the 精准 bond itself)
   const off = battle({
     units: [{ id: 'logos', g: ['garrison_169_a'], row: 10, col: 4 }],
-    bonds: { babelShip: B(0, false), arcaneShip: B(0) },
+    bonds: { babelShip: B(0, false), arcaneShip: B(0), preciShip: B(0) },
   });
   const e = off.spawn('dummy', { pos: [9, 9] });
   off.b.dealDamage(off.unit('logos'), e, { amount: num(GR('garrison_169_a').bb.check_damage), type: 'true', canDodge: false });
-  assert.deepEqual(gains(off), { arcaneShip: 6 }, 'only the active bond takes its share');
+  assert.deepEqual(gains(off), { arcaneShip: 6, preciShip: 6 }, 'only the active bonds take their share');
   checkInvariants(off.b);
   // 阿斯卡纶's 击倒 pair is gone: a kill alone no longer grants 巴别塔 / 突袭
   const kill = battle({
@@ -282,7 +283,7 @@ test('dealdamage 169/166: an inactive bond takes nothing, and the pair fires fro
 // ---------------------------------------------------------------------------------------------------------------------
 // the revised table in the rebuilt data
 
-test('data: the revised 特质 table — owners, replaced rows gone, 独行 member, no orphan fiat garrison', () => {
+test('data: the revised 特质 table — owners, replaced rows gone, 独行 membership (阿斯卡纶 out, 2026-10-13), no orphan fiat garrison', () => {
   for (const [gid, owner] of [['garrison_163_a', 'chess_char_1_06_babel_a'], ['garrison_163_b', 'chess_char_1_06_babel_b'],
     ['garrison_164_a', 'chess_char_2_05_babel_a'], ['garrison_164_b', 'chess_char_2_05_babel_b'],
     ['garrison_166_a', 'chess_char_3_05_babel_a'], ['garrison_166_b', 'chess_char_3_05_babel_b'],
@@ -314,20 +315,57 @@ test('data: the revised 特质 table — owners, replaced rows gone, 独行 memb
     assert.equal(GR(gid).bb.count ?? null, null, `${gid}: the old 休整期 count key is gone`);
     assert.equal(GR(gid).eventType, 'IN_BATTLE', gid);
   }
-  // 阿斯卡纶 carries 独行 (maintainer's member table) and appears in its member list
-  assert.deepEqual(D.chess['chess_char_3_05_babel_a'].bonds, ['babelShip', 'raidShip', 'soloShip']);
-  assert.ok(D.bonds.soloShip.members.includes('chess_char_3_05_babel_a'), 'soloShip lists her chessId');
+  // 逻各斯's 169 target list gained 精准 on 2026-10-13 (maintainer): the row now writes 【巴别塔】【奥术】【精准】, and the
+  // handler's `bond_id` lists the three in the ORDER OF THE TEXT (the same order the 'each of them +6 / +8' payment walks).
+  // check_damage / bond_add_count / max_add_count_per_battle are untouched by this ruling (asserted just above).
+  for (const [gid, per] of [['garrison_169_a', 6], ['garrison_169_b', 8]]) {
+    assert.deepEqual(ids(GR(gid).bbStr.bond_id), ['babelShip', 'arcaneShip', 'preciShip'], gid);
+    assert.match(GR(gid).descRaw, /^<战斗中>每累计造成5000点伤害，使已激活的【巴别塔】【奥术】【精准】层数<@ba\.vup>\+\d+<\/>（每场作战至多\d+层）$/, `${gid}: the three-bond text`);
+    assert.match(GR(gid).desc, new RegExp(`【巴别塔】【奥术】【精准】层数\\+${per}（每场作战至多`), `${gid}: the plain text`);
+  }
+  // 阿斯卡纶 no longer carries 独行: the maintainer's ruling of 2026-10-13 (docs/DATA.md §19.10) drops soloShip from her to
+  // take that covenant's OWN bonuses away (its ×1.6 ATK / HP and its +15 SP on deploy); 独行 had pushed her ATK up, which
+  // made her the likely 【指挥】, and a 指挥's fixed aura sits badly on a 突袭 unit. NOTHING here asserts the election: the
+  // pick is purely the highest-ATK 巴别塔 member at battle start, she may still be chosen, and the assertions below only
+  // read her `bonds` and the member lists. Her row is this file's (a FIAT chess), so the EXACT final `bondIds` is what
+  // data/chess.json carries, and soloShip's own member list drops both of her ids; the bond's own numbers (maxCount 1,
+  // 越少越强) do not move. She keeps 巴别塔 and 突袭.
+  assert.deepEqual(D.chess['chess_char_3_05_babel_a'].bonds, ['babelShip', 'raidShip']);
+  assert.deepEqual(D.chess['chess_char_3_05_babel_b'].bonds, ['babelShip', 'raidShip']);
+  assert.ok(!D.bonds.soloShip.members.includes('chess_char_3_05_babel_a'), 'soloShip no longer lists her chessId');
+  assert.ok(!D.bonds.soloShip.members.includes('chess_char_3_05_babel_b'), 'soloShip no longer lists her elite id');
+  assert.ok(D.bonds.raidShip.members.includes('chess_char_3_05_babel_a'), 'she is still a 突袭 member');
+  assert.ok(D.bonds.babelShip.members.includes('chess_char_3_05_babel_a'), 'she is still a 巴别塔 member');
+  assert.deepEqual([D.bonds.soloShip.members.length, D.bonds.soloShip.visibleMembers.length], [6, 6]);
+  assert.equal(D.bonds.soloShip.maxCount, 1);
   assert.deepEqual([D.bonds.babelShip.members.length, D.bonds.babelShip.visibleMembers.length], [13, 11]);
+  // 精准 preciShip: 逻各斯 and 维什戴尔 gained the ADD-ON bond (maintainer's ruling of 2026-10-13, docs/DATA.md §19.10),
+  // appended at the END of their own `bonds` and mirrored into the official member list by the `bondChessIds` union.
+  // The bond itself is untouched: still the add-on 在场 2 名 / 3 名 threshold pair, never core.
+  assert.deepEqual(D.chess['chess_char_5_07_babel_a'].bonds, ['babelShip', 'arcaneShip', 'preciShip']);
+  assert.deepEqual(D.chess['chess_char_5_07_babel_b'].bonds, ['babelShip', 'arcaneShip', 'preciShip']);
+  assert.deepEqual(D.chess['chess_char_6_04_babel_a'].bonds, ['babelShip', 'preciShip']);
+  assert.deepEqual(D.chess['chess_char_6_04_babel_b'].bonds, ['babelShip', 'preciShip']);
+  // `members` / `visibleMembers` keep the NORMAL ids only (buildBonds drops the elites), so both `_a` ids must be there
+  // and the `_b` ids are covered by the `bonds` assertions above.
+  for (const id of ['chess_char_5_07_babel_a', 'chess_char_6_04_babel_a']) {
+    assert.ok(D.bonds.preciShip.members.includes(id), `preciShip lists ${id}`);
+  }
+  assert.deepEqual([D.bonds.preciShip.members.length, D.bonds.preciShip.visibleMembers.length], [14, 14]);
+  assert.deepEqual([D.bonds.preciShip.thresholds, D.bonds.preciShip.thresholdTemplate, D.bonds.preciShip.maxCount, D.bonds.preciShip.isCore],
+    [[2, 3], 'count_threshold_upward', null, false], '精准 stays the add-on 2 / 3 bond');
   // 维什戴尔: ONE 作战能力 row (the fixed +20 / +40 % half and the per-3-layers half of the same sentence), so the
-  // detail card never draws two 作战能力 blocks; 赫德雷 keeps his own per-layer pair unchanged
+  // detail card never draws two 作战能力 blocks; the layer judgement takes 精准 too since 2026-10-13 (maintainer) —
+  // stepsOf() SUMS the listed bonds' layers before `divide_num`, so the text reads 【巴别塔】【精准】每叠加3层 and the
+  // row is STILL one row with the same base_* / per-step numbers. 赫德雷 keeps his own per-layer pair unchanged.
   for (const [id, gid, base, per] of [['chess_char_6_04_babel_a', 'garrison_170_a', 0.2, 0.01],
     ['chess_char_6_04_babel_b', 'garrison_170_b', 0.4, 0.02]]) {
     assert.deepEqual(D.chess[id].garrisonIds, [gid], `${id}: a single 特质 id`);
     assert.deepEqual([GR(gid).eventTypeDesc, GR(gid).effectKey, GR(gid).battleRuneKey], ['作战能力', 'act1autochess_gar_eff_attrByBond', 'env_gbuff_new_with_verify'], gid);
     assert.deepEqual([num(GR(gid).bb.base_atk), num(GR(gid).bb.base_max_hp), num(GR(gid).bb.divide_num), num(GR(gid).bb.atk), num(GR(gid).bb.max_hp)],
       [base, base, 3, per, per], `${gid}: both halves in one blackboard`);
-    assert.deepEqual(ids(GR(gid).bbStr.bond_id), ['babelShip'], gid);
-    assert.match(GR(gid).descRaw, /^攻击力和生命值\+<@ba\.vup>(20|40)%<\/>；【巴别塔】每叠加3层/, `${gid}: the one-line text`);
+    assert.deepEqual(ids(GR(gid).bbStr.bond_id), ['babelShip', 'preciShip'], gid);
+    assert.match(GR(gid).descRaw, /^攻击力和生命值\+<@ba\.vup>(20|40)%<\/>；【巴别塔】【精准】每叠加3层/, `${gid}: the one-line text`);
   }
   for (const gid of ['garrison_168_a', 'garrison_168_b']) {
     assert.deepEqual(GR(gid).owners, [gid.endsWith('_a') ? 'chess_char_5_06_babel_a' : 'chess_char_5_06_babel_b'], `${gid}: 赫德雷 only`);
@@ -358,4 +396,22 @@ test('data: the revised 特质 table — owners, replaced rows gone, 独行 memb
   assert.deepEqual(ownersOfKey('act1autochess_gar_event_healamount'), ['chess_char_2_05_babel_a', 'chess_char_2_05_babel_b']);
   assert.deepEqual(ownersOfKey('act1autochess_gar_event_dealdamage'),
     ['chess_char_3_05_babel_a', 'chess_char_3_05_babel_b', 'chess_char_5_07_babel_a', 'chess_char_5_07_babel_b']);
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// the 精准 inclusion of 2026-10-13, measured in the engine (not only read off the data)
+
+test('attrByBond 170: the layer judgement takes 精准 as well — stepsOf() SUMS the two bonds before divide_num', () => {
+  for (const [gid, base, per] of [['garrison_170_a', 0.2, 0.01], ['garrison_170_b', 0.4, 0.02]]) {
+    // 6 巴别塔 + 3 精准 = 9 → 9 / 3 = 3 steps. The 巴别塔-only control on the same board reads 6 / 3 = 2, so the
+    // assertion below fails if the reader ever ignores the second id again.
+    const both = battle({ units: [{ id: 'wd', g: [gid], row: 10, col: 4 }], bonds: { babelShip: B(6), preciShip: B(3) } });
+    assert.deepEqual(both.unit('wd').findBuff(`gar:${gid}`).mods,
+      { atkPct: base + 3 * per, hpPct: base + 3 * per }, `${gid}: 巴别塔 6 + 精准 3 = 3 steps`);
+    const babelOnly = battle({ units: [{ id: 'wd', g: [gid], row: 10, col: 4 }], bonds: { babelShip: B(6) } });
+    assert.deepEqual(babelOnly.unit('wd').findBuff(`gar:${gid}`).mods,
+      { atkPct: base + 2 * per, hpPct: base + 2 * per }, `${gid}: the same 巴别塔 count alone is 2 steps`);
+    checkInvariants(both.b);
+    checkInvariants(babelOnly.b);
+  }
 });

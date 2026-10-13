@@ -1,4 +1,5 @@
-// server/sim/content/bands/meta.js — prep side of the 40 strategies (bands, data/bands.json).
+// server/sim/content/bands/meta.js — prep side of the 41 strategies (bands, data/bands.json: the 40 official season
+// ones plus the 自研 W, docs/DATA.md §19.13).
 //
 // Every band handler is assembled from the band's buffs by their official buff key (numbers from bb / bbStr, never
 // hard-coded); keys that only act in battle (env_gbuff_new_with_verify, auto_chess_change_map) live in battle.js.
@@ -31,6 +32,10 @@
 //   round_start_gain_coin_by_bond_char_chess_buy       玛恩纳   each <bond> chess bought → +count funds next round (≤ max_count / round)
 //   refresh_shop_count_gain_coin_bond_char_chess       贾维     every refresh_count manual refreshes (match total) → <bond> chess ≤ shop level (≤ max_count / round)
 //   preparation_start_add_special_goods_every_n_round  娜仁图亚 round % n = 0: pick choice_cnt of refresh_cnt items of pool (free)
+//   round_start_gain_chess_by_team_damage              W 自研: the team's cumulative 造成伤害 (ctx.stats().dmgDealt) crossing
+//                                                               dmg_dealt_1/2/3 → the reward at that index once (fixed chess ids,
+//                                                               `babel<n>` = 1 random T<n> <bond> operator from the pool,
+//                                                               `babel<n>plus` = 1 random T≥n one)
 // "进入休整期时" / "回合开始时" = onRoundStart (research 01 §5 step 6).
 
 import { GEO } from '../../../../shared/constants.js';
@@ -360,6 +365,95 @@ K.preparation_start_add_special_goods_every_n_round = (ps) => ({
     if (n <= 0 || ctx.round % n !== 0) return;
     const ids = rollItems(ctx, p.pool, Math.max(1, int(p.refresh_cnt, 2)));
     for (let k = 0; k < Math.max(1, int(p.choice_cnt, 1)) && ids.length; k++) ctx.offerItems(ids, { source: 'band' });
+  },
+});
+
+// W 【滥炸无休】 — the 自研 strategy of the 巴别塔 layer (tools/content/custom.mjs `band` / `bandEffectBuffs`,
+// docs/history/0.2.5.md §30.35 / §30.35b / §30.35c, docs/design/overview.md). The band was 特蕾西娅 【传承】 until the
+// maintainer renamed it on 2026-10-14; neither the rename nor the same day's copy update (§30.35c) moved the mechanism:
+//
+//   「累计对敌人造成10万、30万、85万点伤害后，在下一回合休整期开始时，分别获得<一名随机三阶【巴别塔】干员>、
+//     一名随机四阶及以上【巴别塔】干员、<维什戴尔>」
+//
+// 口径 = ctx.stats().dmgDealt, the match's own team counter: every point of damage the TEAM (the player, its teammates
+// and their tokens) dealt — physical / arts / true / elemental, 元素量表填充 and 流失 / friendly fire excluded — as the
+// battle settle and the boss / hidden rounds accumulate it (match/settle.js, match/bossRounds.js). The band reads it,
+// never a battle-side counter of its own.
+//
+// 时机 = onRoundStart, i.e. the NEXT prep after the battle that pushed the total over the threshold: the damage of that
+// battle is already in `ps.stats.dmgDealt` by then. A short mode (训练 / 娱乐) whose last round crosses a threshold
+// never pays it — accepted by the maintainer (no RESULT flush, no difficulty factor).
+//
+// Blackboard encoding (`bb` / `bbStr` of the band's one buff; numbers from the data, never hard-coded):
+//   bb      dmg_dealt_1 / dmg_dealt_2 / dmg_dealt_3   the three ascending thresholds
+//   bb      count                                    copies granted per threshold (1)
+//   bbStr   reward                                   a comma list, position 1..3 against the thresholds:
+//                                                      <chessId>     grant that chess, never gated by the pool
+//                                                      babelN        1 random tier-N <bond> operator (pool-bound)
+//                                                      babelNplus    1 random tier-N-or-above <bond> operator
+//                                                                    (pool-bound; 「及以上」 is what puts the T6
+//                                                                    维什戴尔 inside the second threshold's reward)
+//   bbStr   bond                                     the bond the random roll draws from
+//
+// The two reserved words are the 2026-10-14 retune's vocabulary, replacing the old single `babel5` (one random tier-5
+// operator): a tier list from the data (`babel3` for the first threshold, `babel4plus` for the second) is more faithful
+// to 「随机一名三阶 / 四阶及以上【巴别塔】干员」 than a fixed tier, and the third threshold stays a fixed chess id.
+//
+// Each threshold pays ONCE, at most once per band and match: a per-threshold latch (`band:<bandId>:t1|t2|t3`, the
+// 潘格尼尼 `ctx.counter` precedent). A round that crosses two thresholds pays both, in ascending order; the latch is
+// written only after a grant actually landed, so an empty pool (both random rewards are pool-bound) leaves that
+// threshold pending and it is tried again at the next prep instead of being lost.
+//
+// A FIXED reward passes `requirePool: false` on purpose: 维什戴尔 is a tier-6 chess whose pool holds only 5 copies, so
+// a four-player match can easily be out of them — 「白送」 means the grant must land anyway
+// (effectsMeta.js grantChess's `requirePool !== false` guard; the 小贾斯汀 precedent in
+// preparation_start_gain_chess_from_round above). The random rolls are the opposite: they ask the POOL
+// (ctx.rollChess), so they can come back empty and are retried.
+/** `bbStr.reward` entry of a random tier-`n`-or-above <bond> operator: `babel<n>plus`. */
+export const RANDOM_BOND_TIER_PLUS = (n) => `babel${n}plus`;
+/** `bbStr.reward` entry of a random exactly-tier-`n` <bond> operator: `babel<n>`. */
+export const RANDOM_BOND_TIER = (n) => `babel${n}`;
+/** Decode one `bbStr.reward` word: a `babel<n>` / `babel<n>plus` roll, or null for a plain chess id. */
+function randomBondTier(what) {
+  const m = /^babel(\d)(plus)?$/.exec(what || '');
+  return m ? { tier: Number(m[1]), plus: !!m[2] } : null;
+}
+K.round_start_gain_chess_by_team_damage = (ps) => ({
+  onRoundStart(ctx) {
+    const p = ps[0];
+    const cnt = [
+      Math.max(0, int(p.dmg_dealt_1, 0)),
+      Math.max(0, int(p.dmg_dealt_2, 0)),
+      Math.max(0, int(p.dmg_dealt_3, 0)),
+    ];
+    const reward = list(p.reward);
+    if (!cnt.some((n) => n > 0) || !reward.length) return;
+    const bond = p.bond || '';
+    const copies = Math.max(1, int(p.count, 1));
+    const dealt = num(ctx.stats().dmgDealt, 0);
+    for (let i = 0; i < cnt.length; i++) {
+      const need = cnt[i];
+      const what = reward[i];
+      if (need <= 0 || !what || dealt < need) continue;
+      const latch = `band:${ctx.bandId()}:t${i + 1}`;
+      if (ctx.counter(latch) > 0) continue;
+      const roll = randomBondTier(what);
+      let got = false;
+      if (roll) {
+        const whatTier = roll.plus ? `${roll.tier} 阶及以上` : `${roll.tier} 阶`;
+        for (let k = 0; k < copies; k++) {
+          const id = roll.plus ? ctx.rollChess({ bond, minTier: roll.tier }) : ctx.rollChess({ bond, tier: roll.tier });
+          if (id && ctx.grantChess(id, { source: 'band' })) got = true;
+          else { ctx.log(`滥炸无休 ${need}: no ${whatTier} ${bond} operator left in the pool (retried next prep)`); break; }
+        }
+      } else {
+        for (let k = 0; k < copies; k++) {
+          if (ctx.grantChess(what, { requirePool: false, source: 'band' })) got = true;
+          else { ctx.log(`滥炸无休 ${need}: chess ${what} is missing from the data`); break; }
+        }
+      }
+      if (got) ctx.setCounter(latch, 1);
+    }
   },
 });
 

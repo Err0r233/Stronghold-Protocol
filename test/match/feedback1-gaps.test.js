@@ -104,6 +104,7 @@ describe('§21.26 3 — strategies tied to a bond the mode switches off', () => 
     assert.deepEqual(tied, {
       杜遥夜: ['yanShip'], 佩佩: ['sargonShip'], 哈洛德: ['victoriaShip'], 休露丝: ['kjeragShip'], 潘格尼尼: ['lateranoShip'],
       克莱门莎: ['egirShip'], 玛恩纳: ['kazimierzShip'], 贾维: ['siracusaShip'], 娜仁图亚: ['sargonShip'],
+      W: ['babelShip'],   // the 自研 band (tools/content/custom.mjs): its <巴别塔> note and its bbStr.bond
     });
     // every tied band carries the official note "在<X>部分干员缺席时体验可能不完整" naming that bond
     for (const id of funny.bandIds()) {

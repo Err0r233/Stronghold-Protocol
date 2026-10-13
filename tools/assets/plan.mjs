@@ -17,7 +17,7 @@
 // (`moduleTypes`), the 20 pool tokens, every enemy that can appear in an
 // act2autochess match (07 enemy list ∪ act1autochess wave/boss levels used by
 // act2 modes ∪ bosses ∪ their summons ∪ enemy units spawned by operator kits),
-// the 23 bonds, 59 shop items, 40 bands,
+// the 23 bonds, 59 shop items, 41 bands (40 official + the 自研 W),
 // default-skill icons, profession icons, autochess UI sprites (the 36 battle
 // emotes and the 19 玩法说明 pages included: UI_EXTRAS), BGM and SFX.
 
@@ -435,7 +435,15 @@ export function buildPlan({ assets07, ops03, enemies05, maps05, audio, modelsDat
     }
     const primarySkill = skillSfx[String(idx[0])];
     if (primarySkill) u.skill = primarySkill;
-    if (Object.keys(skillSfx).length > 1) u.skills = skillSfx;
+    // … and the per-index map when the operator's own activation banks are not just the primary slot's. A single bank
+    // that belongs to a NON-primary slot is neither `skill` (the primary has none) nor, before this, `skills` (the
+    // `> 1` rule): 奥达's only ON_SKILL_START is her S2's (`battle/b_char/b_char_atkboost`), so her skill ran silent
+    // although the file is on disk — 琳琅诗怀雅 S3, 银灰 S2, 古米 S2, 泥岩 S3, 至简 S1, 薇薇安娜 S2, 莎草 S2, Mon3tr S3 and
+    // 灰毫 S2 likewise; 8 more (陈 S2, 凛御银灰 S3, 夜莺 S3, 地灵 S2, 黍 S3, 望 S3, 左乐 S2, 真言 S3) whose
+    // activation file was missing on disk and has been downloaded with this change. The client reads
+    // `skills[skillIndex]` first (public/js/audio.js unit), `skill` stays the primary's fallback for a skill the map
+    // has no entry for.
+    if (Object.keys(skillSfx).length > 1 || (Object.keys(skillSfx).length === 1 && !primarySkill)) u.skills = skillSfx;
     if (Object.keys(attacks).length) u.attacks = attacks;
     if (Object.keys(hits).length) u.hits = hits;
     if (Object.keys(attackMix).length) u.attackMix = attackMix;

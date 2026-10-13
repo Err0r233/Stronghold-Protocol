@@ -130,6 +130,15 @@ test('data/i18n/en.json: shape, the 盟约 season of the EN build, coverage and 
   // `garrisons` (813 → 831 texts, 94.2 %) and 巴别塔's six plus 元素's four texts joined `bonds` (144 → 150, 93.3 %) —
   // both were measured BEFORE those texts landed, so the two floors follow the measurement here. Nothing else moved
   // (choices 99.7, effects 97.7, items 95.1, garrisons 94.2, tokens 95.3, total 97.1 %).
+  // 0.2.5 + the 自研 layer, 2026-10-14: the 自研 策略 W (docs/DATA.md §19.13; 特蕾西娅 【传承】 until the maintainer
+  // renamed it the same day, docs/history/0.2.5.md §30.35b) adds 4 band texts and 3 effect
+  // texts. Its name / effect name / two descriptions are not in any official EN table, so they are supplied through
+  // `tools/i18n/fallback-remake.json` (the mechanism for the remake's own strings, docs/I18N.md §2) and `bands` stays
+  // at **100 % (189/189, official 186)** — no floor had to move for it. The 2026-10-14 rename (W 【滥炸无休】) dropped one
+  // text: the overlay only translates a value that contains CJK (`tools/build-i18n.mjs` `hasCjk`), so the band name
+  // 特蕾西娅 — an official name text — became the Latin `W`, which is not a text at all (bands 190 → 189, official
+  // 187 → 186, totals 24037 → 24036). The effect name and the two descriptions stay remake-supplied and all three are
+  // still 100 % covered.
   const FLOORS = { talents: 94.9, operators: 95, skills: 95, modules: 95, bonds: 93, choices: 99, effects: 97, items: 95, garrisons: 94, tokens: 95 };
   assert.ok(OVERLAY.meta.totals.pct >= 97, `coverage ${OVERLAY.meta.totals.pct} %`);
   for (const kind of ['operators', 'skills', 'talents', 'modules', 'traits', 'enemies', 'bonds', 'items', 'effects', 'bands', 'garrisons', 'stages', 'tokens', 'choices', 'config']) {

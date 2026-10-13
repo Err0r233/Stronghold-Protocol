@@ -1,11 +1,14 @@
 // tools/content/custom.mjs — HAND-MAINTAINED FIAT CONTENT (the 自研 content layer).
 //
 // This module is the one place where the data build deviates from the official tables, at the maintainer's decision
-// only (AGENTS.md 「Deliberate deviations from the official mode are the maintainer's decision only」). It carries three
+// only (AGENTS.md 「Deliberate deviations from the official mode are the maintainer's decision only」). It carries four
 // fiat blocks of equal standing, none of which exists in any build source:
 //
 //   · 巴别塔 — the maintainer's 自研 core bond, from docs/research/15-babel-bond.md (「巴别塔」自研核心盟约 · 设计定稿 v1),
 //     the single authority for the bond, its 11 members and their 特质. Each block below names the section it implements.
+//     Its 策略 W 【滥炸无休】 (`band` / `bandMeta` / `bandEffect` / `bandEffectBuffs` below, maintainer's ruling of
+//     2026-10-14, renamed from 特蕾西娅 【传承】 the same day) is the season's first 自研 band: three damage thresholds
+//     that hand out 巴别塔 operators (docs/history/0.2.5.md §30.35, §30.35a, §30.35b).
 //   · 元素 — the maintainer's 自研 ADD-ON bond (elementShip) and its 7 members, from docs/research/17-element-bond.md.
 //     Everything about it is in the `element`-prefixed block near the end of this file: the bond, its effect blackboard,
 //     the 特质 of its members, and 珊比's promotion out of the 自选 pool into a T4 shop chess.
@@ -29,6 +32,8 @@
 //   chessBonds / elementChessBonds    → official members that gain the bond
 //   chessGarrisons / elementChess…    → official members whose trait is overridden
 //   bondChessIds                      → the official bonds those fiat members carry (the member-list mirror)
+//   band + bandMeta                   → act.bandDataListDict / ac.bandDataDict        (buildBands reads both)
+//   bandEffect + bandEffectBuffs      → effectInfoDataDict / effectBuffInfoDataDict  (the same channel as `effect`)
 //   modeBonds                         → config.modes[*].activeBondIds (a build-level overlay of the mode tables)
 //   garrisonKeep                      → data/garrisons.json (read directly by buildGarrisons: the official rows the
 //                                       replacements above leave unreferenced but the dataset must keep)
@@ -77,7 +82,10 @@
 // `elementChessBonds` simply do NOT name it. That is how 克莱门莎 left 不屈 (indomShip) with the maintainer's ruling of
 // 2026-10-12: `clemensa.design.bondIds` below reads `['egirShip', 'swiftShip', 'elementShip']` exactly (and
 // `applyClemensaDesign` forces it onto her row whether that row is ours or the official one), `bondChessIds` no longer
-// lists her under 不屈, and no union entry mentions her.
+// lists her under 不屈, and no union entry mentions her. The SECOND user of that path is 阿斯卡纶 leaving 独行
+// (maintainer's ruling of 2026-10-13, docs/DATA.md §19.10): her `members` row below reads `['raidShip']` exactly, so
+// data/chess.json `bonds` is `['babelShip', 'raidShip']`, and `bondChessIds` no longer names her under soloShip (her
+// two 巴别塔 ids are this file's, so nothing else could have put her there).
 //
 // DATA ONLY. The simulation of the bond (一档 编制 / 二档 指挥) is written in server/sim/ by the maintainer separately;
 // nothing here encodes behaviour, only the official-table shapes the builders already read.
@@ -139,22 +147,30 @@ function attrs({ maxHp, atk, def, magicResistance, cost = 19, baseAttackTime = 1
 // ===== 巴别塔 — the bond (docs/research/15-babel-bond.md §1) ======================================================
 //
 // 一档 (L layers, both attributes)  ATK / maxHP × (1 + 0.12 + 0.008·L)
-// 一档 rider                        +2% ATK per distinct OTHER bond kind carried by a member, capped at +10%
-// 二档 指挥 (L layers, 八格)        allies' damage → 1.10 + 0.0007·L (cap 1.80); DEF/RES ignore → 0.20 + 0.0004·L (cap 0.60)
+// 一档 rider                        +4% ATK per distinct OTHER bond kind carried by a member, capped at +20% (5 kinds,
+//                                   keys `other_bond_kind_atk` / `_cap`): an INDEPENDENT multiplier (`atkMul`), outside
+//                                   the 直接乘算 `atkPct` bucket, and ATK only (core.js `bond:babel:rider`)
+// 二档 指挥 (L layers, 八格)        allies' damage → 1.20 + 0.0008·L (cap 2.00); DEF/RES ignore → 0.20 + 0.0004·L (cap 0.60)
 //
 // `other_bond_kind_atk` / `other_bond_kind_atk_cap` are new keys — no official bond has the rider, so the sim reads
 // them again by name. OPEN-1 of the research file resolves the rider's counting to 「只计本局可用」 (a bond in
 // mode.inactiveBondIds does not count): a simulation rule, not a data one.
+//
+// 2026-10-13 (maintainer): the rider doubles to **+4 %/种, cap +20 %** (that ruling settled the +10 % the text used to
+// carry against the table's +20 %) and becomes 独立加成、最终乘算 (units.js `_recalc`:
+// atk = ((base + Σflat)(1 + ΣatkPct) + ΣatkFinal) × atkMul); the 二档 numbers rise to 1.20 / 0.0008 / cap 2.00; and the
+// layer ceilings leave the TEXT — 元素's 150 / 200 and 巴别塔's 180 % / 60 % now read 「（受层数影响）」 alone, while the
+// formulas keep clamping exactly as before (text only, no number moves).
 const BABEL = 'babelShip';
 
 const bond = {
   [BABEL]: {
     bondId: BABEL, name: '巴别塔',
     desc: '【巴别塔】干员<@ba.vup>攻击力</>、<@ba.vup>生命值</>提升<@autochess.gray>（受层数影响）</>\n'
-      + '每有一名【巴别塔】干员所属的其它盟约种类与已计入的不同，全体【巴别塔】干员额外获得<@ba.vup>攻击力</>提升（最高<@ba.vup>+10%</>）\n'
-      + '<在场<@autochess.dgreen>6</>名不同【巴别塔】干员>战斗开始时，攻击力最高的【巴别塔】干员成为<@ba.vup>【指挥】</>，'
-      + '其周围八格内的友方干员造成的伤害提升至<@ba.vup>110%</>，攻击时无视<@ba.vup>20%</>的防御力和法术抗性；'
-      + '<@ba.vup>【指挥】</>被击倒时，指挥权移交给场上攻击力最高的下一名【巴别塔】干员',
+      + '每有一名【巴别塔】干员所属的其它盟约种类与已计入的不同，全体【巴别塔】干员额外获得<@ba.vup>攻击力</>提升（最高<@ba.vup>+20%</>）\n'
+      + '<在场<@autochess.dgreen>6</>名不同【巴别塔】干员>战斗开始时，攻击力最高的【巴别塔】干员成为<@ba.vup>【指挥】</>。'
+      + '<@ba.vup>【指挥】</>及其周围八格内的友方干员造成的伤害提升至<@ba.vup>120%</>，攻击时无视<@ba.vup>20%</>的防御力和法术抗性。'
+      + '<@ba.vup>【指挥】</>被击倒时，<@ba.vup>【指挥】</>移交给场上攻击力最高的下一名【巴别塔】干员。',
     iconId: 'icon_babelShip',
     activeCount: 3,
     activeCondition: 'BOARD',
@@ -221,8 +237,8 @@ const effect = {
     effectDesc: '【巴别塔】干员攻击力、生命值<@ba.vup>+{0:0%}</><@ba.acrem>（受层数影响）</>，'
       + '每有一名【巴别塔】干员所属的其它盟约种类与已计入的不同，全体【巴别塔】干员额外获得<@ba.vup>攻击力+{4:0%}</>（最高<@ba.vup>+{5:0%}</>）\n'
       + '<在场<@ba.vup>6</>名不同【巴别塔】干员>战斗开始时，攻击力最高的【巴别塔】干员成为【指挥】，'
-      + '其周围八格内的友方干员造成的伤害提升至<@ba.vup>{2:0%}</><@ba.acrem>（受层数影响，最高180%）</>，'
-      + '攻击时无视<@ba.vup>{3:0%}</>的防御力和<@ba.vup>{6:0%}</>的法术抗性<@ba.acrem>（均受层数影响，最高60%）</>',
+      + '<@ba.vup>【指挥】</>及其周围八格内的友方干员造成的伤害提升至<@ba.vup>{2:0%}</><@ba.acrem>（受层数影响）</>，'
+      + '攻击时无视<@ba.vup>{3:0%}</>的防御力和<@ba.vup>{6:0%}</>的法术抗性<@ba.acrem>（受层数影响）</>',
     effectDecoIconId: null, enemyPrice: 0,
   },
 };
@@ -234,10 +250,10 @@ const effectBuffs = {
     blackboard: blackboard({
       base_atk: 0.12, atk_per_stack: 0.008,             // 一档 ATK   × (1 + 0.12 + 0.008·L)
       base_max_hp: 0.12, max_hp_per_stack: 0.008,       // 一档 maxHP × (1 + 0.12 + 0.008·L)
-      other_bond_kind_atk: 0.02,                        // 一档 rider +2% ATK per distinct other bond kind
-      other_bond_kind_atk_cap: 0.10,                    //            capped at +10% (5 kinds)
-      base_damage_scale_show: 1.10, damage_scale_per_stack: 0.0007,   // 二档 999 layers → 179.93%
-      damage_scale_cap: 1.80,
+      other_bond_kind_atk: 0.04,                        // 一档 rider +4% ATK per distinct other bond kind (独立乘算)
+      other_bond_kind_atk_cap: 0.20,                    //            capped at +20% (5 kinds, maintainer 2026-10-13)
+      base_damage_scale_show: 1.20, damage_scale_per_stack: 0.0008,   // 二档 999 layers → 199.92% (cap 200%)
+      damage_scale_cap: 2.00,
       base_def_penetrate: 0.20, def_penetrate_per_stack: 0.0004,      // 二档 999 layers →  59.96%
       base_res_penetrate: 0.20, res_penetrate_per_stack: 0.0004,
       penetrate_cap: 0.60,
@@ -389,6 +405,10 @@ const garrisons = {
 
   // ── 逻各斯 T5 (新增, §2 revised 2026-10-12): <战斗中> 每累计造成 5000 点伤害【巴别塔】【奥术】+6 / +8 ──
   //    (每场作战至多 24 / 32)
+  //    2026-10-13 (maintainer): 精准 preciShip  appended to the TARGET LIST — the row now writes
+  //    「【巴别塔】【奥术】【精准】层数 +6 / +8」 and `bond_id` = 'babelShip,arcaneShip,preciShip' (the order of the text).
+  //    `check_damage` / `bond_add_count` / `max_add_count_per_battle` are untouched; only the list of bonds the handler
+  //    pays grew by the one 逻各斯 himself gained in the same ruling (docs/DATA.md §19.10, docs/research/15 §2 v2.5).
   //    His first pair (the 进入休整期时 +6 / +12 of research 15 §2) gives way to the 造成伤害 counter of the
   //    「伤害输出」axis — the maintainer's decision of 2026-10-12 after a mode sweep: a battle-only counter is part of
   //    the 战斗内 axis, and the 休整期 half of the fiat layer is left to 伊内丝 (the official 现成 source). The row
@@ -396,24 +416,28 @@ const garrisons = {
   //    The threshold is 5000 (was 8000 at first landing, on the maintainer's 实测: 8000 triggered only once in a
   //    standard-difficulty r13 wave).
   garrison_169_a: garrison('garrison_169_a',
-    '<战斗中>每累计造成5000点伤害，使已激活的【巴别塔】【奥术】层数<@ba.vup>+6</>（每场作战至多24层）',
-    { eventType: 'IN_BATTLE', eventTypeDesc: '持续叠加', effectType: 'ADD_BOND', bb: { check_damage: 5000, bond_add_count: 6, max_add_count_per_battle: 24 }, bbStr: { key: 'act1autochess_gar_event_dealdamage', bond_type: 'bond_by_id', bond_id: `${BABEL},arcaneShip`, bond_add_type: 'by_count', garrison_key: 'garrison_169_a' }, battleRuneKey: 'env_gbuff_new_with_verify' }),
+    '<战斗中>每累计造成5000点伤害，使已激活的【巴别塔】【奥术】【精准】层数<@ba.vup>+6</>（每场作战至多24层）',
+    { eventType: 'IN_BATTLE', eventTypeDesc: '持续叠加', effectType: 'ADD_BOND', bb: { check_damage: 5000, bond_add_count: 6, max_add_count_per_battle: 24 }, bbStr: { key: 'act1autochess_gar_event_dealdamage', bond_type: 'bond_by_id', bond_id: `${BABEL},arcaneShip,preciShip`, bond_add_type: 'by_count', garrison_key: 'garrison_169_a' }, battleRuneKey: 'env_gbuff_new_with_verify' }),
   garrison_169_b: garrison('garrison_169_b',
-    '<战斗中>每累计造成5000点伤害，使已激活的【巴别塔】【奥术】层数<@ba.vup>+8</>（每场作战至多32层）',
-    { eventType: 'IN_BATTLE', eventTypeDesc: '持续叠加', effectType: 'ADD_BOND', bb: { check_damage: 5000, bond_add_count: 8, max_add_count_per_battle: 32 }, bbStr: { key: 'act1autochess_gar_event_dealdamage', bond_type: 'bond_by_id', bond_id: `${BABEL},arcaneShip`, bond_add_type: 'by_count', garrison_key: 'garrison_169_b' }, battleRuneKey: 'env_gbuff_new_with_verify' }),
+    '<战斗中>每累计造成5000点伤害，使已激活的【巴别塔】【奥术】【精准】层数<@ba.vup>+8</>（每场作战至多32层）',
+    { eventType: 'IN_BATTLE', eventTypeDesc: '持续叠加', effectType: 'ADD_BOND', bb: { check_damage: 5000, bond_add_count: 8, max_add_count_per_battle: 32 }, bbStr: { key: 'act1autochess_gar_event_dealdamage', bond_type: 'bond_by_id', bond_id: `${BABEL},arcaneShip,preciShip`, bond_add_type: 'by_count', garrison_key: 'garrison_169_b' }, battleRuneKey: 'env_gbuff_new_with_verify' }),
 
-  // ── 维什戴尔 T6 (新增, §2): 作战能力 攻防 +20% / +40%  与 【巴别塔】每 3 层攻防 +1% / +2% 写在同一行 ──
+  // ── 维什戴尔 T6 (新增, §2): 作战能力 攻防 +20% / +40%  与 【巴别塔】【精准】每 3 层攻防 +1% / +2% 写在同一行 ──
   //    The fixed half is `base_atk` / `base_max_hp` (fractions, attrMods()), the per-layer half the bare keys. Her
   //    fixed half used to be its own `garrison_170_a/_b` row whose `atk: 1.2` was a MULTIPLIER through
   //    char_attribute_mul, and the per-layer half borrowed 赫德雷's `garrison_168_a/_b`: two ids ⇒ two 「作战能力」
   //    blocks on the detail card, and the +20 % counted as a second, multiplicative term. Both halves now live in this
   //    one row, and 168 belongs to 赫德雷 alone again.
+  //    2026-10-13 (maintainer): the LAYER JUDGEMENT takes 精准 too (`bond_id` 'babelShip,preciShip'). stepsOf() SUMS
+  //    the layers of every bond listed, so the text reads 「【巴别塔】【精准】每叠加3层…+1% / +2%」: the two bonds'
+  //    layers add up before `divide_num` 3. Still ONE row, `base_*` and the per-layer numbers unchanged (the earlier
+  //    ruling that merged the halves stands).
   garrison_170_a: garrison('garrison_170_a',
-    '攻击力和生命值+<@ba.vup>20%</>；【巴别塔】每叠加3层，本干员攻击力和生命值<@ba.vup>+1%</>',
-    { eventType: 'IN_BATTLE', eventTypeDesc: '作战能力', effectType: 'GAIN_BUFF', bb: { base_atk: 0.2, base_max_hp: 0.2, divide_num: 3, atk: 0.01, max_hp: 0.01 }, bbStr: { key: 'act1autochess_gar_eff_attrByBond', bond_id: BABEL }, battleRuneKey: 'env_gbuff_new_with_verify' }),
+    '攻击力和生命值+<@ba.vup>20%</>；【巴别塔】【精准】每叠加3层，本干员攻击力和生命值<@ba.vup>+1%</>',
+    { eventType: 'IN_BATTLE', eventTypeDesc: '作战能力', effectType: 'GAIN_BUFF', bb: { base_atk: 0.2, base_max_hp: 0.2, divide_num: 3, atk: 0.01, max_hp: 0.01 }, bbStr: { key: 'act1autochess_gar_eff_attrByBond', bond_id: `${BABEL},preciShip` }, battleRuneKey: 'env_gbuff_new_with_verify' }),
   garrison_170_b: garrison('garrison_170_b',
-    '攻击力和生命值+<@ba.vup>40%</>；【巴别塔】每叠加3层，本干员攻击力和生命值<@ba.vup>+2%</>',
-    { eventType: 'IN_BATTLE', eventTypeDesc: '作战能力', effectType: 'GAIN_BUFF', bb: { base_atk: 0.4, base_max_hp: 0.4, divide_num: 3, atk: 0.02, max_hp: 0.02 }, bbStr: { key: 'act1autochess_gar_eff_attrByBond', bond_id: BABEL }, battleRuneKey: 'env_gbuff_new_with_verify' }),
+    '攻击力和生命值+<@ba.vup>40%</>；【巴别塔】【精准】每叠加3层，本干员攻击力和生命值<@ba.vup>+2%</>',
+    { eventType: 'IN_BATTLE', eventTypeDesc: '作战能力', effectType: 'GAIN_BUFF', bb: { base_atk: 0.4, base_max_hp: 0.4, divide_num: 3, atk: 0.02, max_hp: 0.02 }, bbStr: { key: 'act1autochess_gar_eff_attrByBond', bond_id: `${BABEL},preciShip` }, battleRuneKey: 'env_gbuff_new_with_verify' }),
 
   // ── 华法琳: NO row here. Her trait cap override (our `garrison_173_a/_b` → `garrison_174_a/_b`, 4 / 8 layers) was
   //    WITHDRAWN on 2026-10-13 (maintainer): the official pair already IS the wanted semantics — `garrison_72_a/_b`
@@ -661,18 +685,27 @@ const members = [
   // (升变 form: the official charEquip table DOES carry her module — `uniequip_002_amiya3`, listed under `char_002_amiya`,
   //  the base 阿米娅 row, since the form shares her equip slots — so this is official data, not a synthesis)
   member('chess_char_2_05_babel', 2, 'char_1037_amiya3', 302, 23, ['arcaneShip'], ['garrison_164_a', 'garrison_164_b'], 'uniequip_002_amiya3'),
-  // 阿斯卡纶 T3 — 突袭 + 独行; <战斗中> 每累计造成 3000 点伤害【巴别塔】【突袭】+2 / +4 — default S2 恩赐 (maintainer, 2026-10-13)
-  // (the maintainer's member table adds 独行 soloShip to her three bonds, in the order 巴别塔, 突袭, 独行)
-  member('chess_char_3_05_babel', 3, 'char_4132_ascln', 303, 22, ['raidShip', 'soloShip'], ['garrison_166_a', 'garrison_166_b'], 'uniequip_002_ascln', 1),
+  // 阿斯卡纶 T3 — 突袭 ONLY; <战斗中> 每累计造成 3000 点伤害【巴别塔】【突袭】+2 / +4 — default S2 恩赐 (maintainer, 2026-10-13)
+  // 独行 soloShip REMOVED by the maintainer's ruling of 2026-10-13 (docs/DATA.md §19.10): the point is to drop the 独行
+  // covenant's OWN bonuses (its ×1.6 ATK / HP and its +15 SP on deploy). 独行 also inflated her ATK, which made her the
+  // likelier 【指挥】 pick, and a 指挥's fixed aura sits badly on a 突袭 unit that sprints across the field. That is NOT a
+  // guard against the election: the pick is purely the highest-ATK 巴别塔 member at battle start, so she may still be
+  // chosen and nothing here or in the engine restricts it. Her whole row is this file's (a FIAT chess), so the record
+  // states the EXACT final `bondIds` and
+  // `bondChessIds` below simply does not name her under soloShip: the header's REMOVING note, the second user after
+  // 克莱门莎's 不屈. She keeps 巴别塔 and 突袭 unchanged.
+  member('chess_char_3_05_babel', 3, 'char_4132_ascln', 303, 22, ['raidShip'], ['garrison_166_a', 'garrison_166_b'], 'uniequip_002_ascln', 1),
   // 可露希尔 T3 — 投资人; <获得时> 自身所属盟约 +4 / +8 — default S3 「Q.E.D.」 (maintainer, 2026-10-13)
   member('chess_char_3_06_babel', 3, 'char_4228_closur', 304, 23, ['investShip'], ['garrison_167_a', 'garrison_167_b'], 'uniequip_002_closur', 2),
   // 赫德雷 T5 — 不屈; 【巴别塔】每 3 层攻防 +1% / +2% — default S3 死境硝烟 (maintainer, 2026-10-13)
   member('chess_char_5_06_babel', 5, 'char_4088_hodrer', 305, 50, ['indomShip'], ['garrison_168_a', 'garrison_168_b'], 'uniequip_002_hodrer', 2),
-  // 逻各斯 T5 — 奥术; <战斗中> 每累计造成 8000 点伤害【巴别塔】【奥术】+6 / +8 — default S3 延异视阈 (maintainer, 2026-10-13)
-  member('chess_char_5_07_babel', 5, 'char_4133_logos', 306, 51, ['arcaneShip'], ['garrison_169_a', 'garrison_169_b'], 'uniequip_002_logos', 2),
-  // 维什戴尔 T6 — 无其它盟约; 攻防 +20 / +40% 与 【巴别塔】每 3 层攻防 +1% / +2% 写在同一行（不再借 168 那一对，
-  // 单一 garrisonId，详情卡只有一个「作战能力」块）— default S3 爆裂黎明 (maintainer, 2026-10-13)
-  member('chess_char_6_04_babel', 6, 'char_1035_wisdel', 307, 23, [], ['garrison_170_a', 'garrison_170_b'], 'uniequip_002_wisdel', 2),
+  // 逻各斯 T5 — 奥术 + 精准 (preciShip appended by the maintainer's ruling of 2026-10-13); <战斗中> 每累计造成 8000 点
+  // 伤害【巴别塔】【奥术】+6 / +8 — default S3 延异视阈 (maintainer, 2026-10-13)
+  member('chess_char_5_07_babel', 5, 'char_4133_logos', 306, 51, ['arcaneShip', 'preciShip'], ['garrison_169_a', 'garrison_169_b'], 'uniequip_002_logos', 2),
+  // 维什戴尔 T6 — 精准 (preciShip appended by the maintainer's ruling of 2026-10-13, the only other bond of hers);
+  // 攻防 +20 / +40% 与【巴别塔】每 3 层攻防 +1% / +2% 写在同一行（不再借 168 那一对，单一 garrisonId，
+  // 详情卡只有一个「作战能力」块）— default S3 爆裂黎明 (maintainer, 2026-10-13)
+  member('chess_char_6_04_babel', 6, 'char_1035_wisdel', 307, 23, ['preciShip'], ['garrison_170_a', 'garrison_170_b'], 'uniequip_002_wisdel', 2),
 ];
 
 const chess = {};
@@ -837,9 +870,12 @@ const chessBonds = {
 // like `bondIds` above, never rewritten.
 //
 // Only the fiat chess of this file that the design gives an OFFICIAL bond are listed (babelShip's own list is in
-// `bond.chessIdList` above; 奥达 / 维什戴尔 carry no other bond):
-//   暴行 助力 · 阿米娅·医疗 奥术 · 阿斯卡纶 突袭 + 独行 · 可露希尔 投资人 · 赫德雷 不屈 · 逻各斯 奥术
+// `bond.chessIdList` above; 奥达 carries no other bond):
+//   暴行 助力 · 阿米娅·医疗 奥术 · 阿斯卡纶 突袭 · 可露希尔 投资人 · 赫德雷 不屈 · 逻各斯 奥术 + 精准 · 维什戴尔 精准
 //   克莱门莎 阿戈尔 / 迅捷 / 元素 (her committed records, `clemensa.chess` below)
+// 阿斯卡纶 is NOT listed under 独行 any more: the maintainer's ruling of 2026-10-13 drops soloShip from her (docs/DATA.md
+// §19.10), and because a union can only ADD a bond, the removal is done by NOT naming her here plus her record's exact
+// final `bondIds` (the header's REMOVING note) — 克莱门莎's 不屈 is the other user of that path.
 // 克莱门莎 is NOT listed under 不屈 any more: the maintainer's ruling of 2026-10-12 gives her 阿戈尔 / 迅捷 / 元素, so
 // indomShip's member list drops her two records and elementShip's own `chessIdList` (above) carries them instead.
 const bondChessIds = {
@@ -847,7 +883,12 @@ const bondChessIds = {
   arcaneShip: ['chess_char_2_05_babel_a', 'chess_char_2_05_babel_b',                                     // 阿米娅·医疗
     'chess_char_5_07_babel_a', 'chess_char_5_07_babel_b'],                                               // 逻各斯
   raidShip: ['chess_char_3_05_babel_a', 'chess_char_3_05_babel_b'],                                     // 阿斯卡纶
-  soloShip: ['chess_char_3_05_babel_a', 'chess_char_3_05_babel_b'],                                     // 阿斯卡纶 (maintainer's table: 独行)
+  // 精准 preciShip: the maintainer's ruling of 2026-10-13 gives the ADD-ON bond to 逻各斯 and 维什戴尔. Both are FIAT
+  // chess of this file, so the union below is what puts them in the official member list (`members` / `visibleMembers`
+  // come from `chessIdList`, build-data.mjs buildBonds); their own records carry the same bond in `bonds` (the mirror
+  // image, `members` above). 精准 is an add-on bond of the same layer as 巴别塔 / 元素, never a core one.
+  preciShip: ['chess_char_5_07_babel_a', 'chess_char_5_07_babel_b',                                     // 逻各斯
+    'chess_char_6_04_babel_a', 'chess_char_6_04_babel_b'],                                              // 维什戴尔
   investShip: ['chess_char_3_06_babel_a', 'chess_char_3_06_babel_b'],                                   // 可露希尔
   indomShip: ['chess_char_5_06_babel_a', 'chess_char_5_06_babel_b'],                                    // 赫德雷 (克莱门莎 left 不屈)
   egirShip: ['chess_char_5_clemnt_a', 'chess_char_5_clemnt_b'],                                         // 克莱门莎
@@ -884,8 +925,8 @@ const slope = (base, top, cap) => Math.round(((top - base) / cap) * 1e7) / 1e7;
 const elementBond = {
   [ELEMENT]: {
     bondId: ELEMENT, name: '元素',
-    desc: '【元素】干员造成的元素损伤提升<@autochess.gray>（受层数影响，150层达到最大增益）</>\n'
-      + '<在场<@autochess.dgreen>3</>名不同【元素】干员>按元素损伤种类分别生效<@autochess.gray>（受层数影响，200层达到最大增益）</>：\n'
+    desc: '【元素】干员造成的元素损伤提升<@autochess.gray>（受层数影响）</>\n'
+      + '<在场<@autochess.dgreen>3</>名不同【元素】干员>按元素损伤种类分别生效<@autochess.gray>（受层数影响）</>：\n'
       + '凋亡损伤爆发：本次元素爆发造成的伤害提升至<@ba.vup>110%</>，目标的攻击力额外最终降低至<@ba.vup>70%</>\n'
       + '灼燃损伤爆发：本次元素爆发造成的伤害提升至<@ba.vup>195%</>，目标的法术抗性额外<@ba.vup>-20</>\n'
       + '神经损伤爆发：本次元素爆发直接造成的伤害提升至<@ba.vup>110%</>，冷却期间每秒额外受到<@ba.vup>500</>点无来源的元素持续伤害\n'
@@ -944,8 +985,8 @@ const elementEffect = {
   bondeffect_element: {
     effectId: 'bondeffect_element', effectType: 'BOND', effectCounterType: 'NONE', continuedRound: -1,
     effectName: '元素',
-    effectDesc: '【元素】干员造成的元素损伤<@ba.vup>+{0:0%}</><@ba.acrem>（受层数影响，150层达到最大增益）</>\n'
-      + '<在场<@ba.vup>3</>名不同【元素】干员>按元素损伤种类分别生效<@ba.acrem>（受层数影响，200层达到最大增益）</>：\n'
+    effectDesc: '【元素】干员造成的元素损伤<@ba.vup>+{0:0%}</><@ba.acrem>（受层数影响）</>\n'
+      + '<在场<@ba.vup>3</>名不同【元素】干员>按元素损伤种类分别生效<@ba.acrem>（受层数影响）</>：\n'
       + '凋亡损伤爆发：本次元素爆发造成的伤害提升至<@ba.vup>{1:0%}</>，目标的攻击力额外最终降低至<@ba.vup>{2:0%}</>\n'
       + '灼燃损伤爆发：本次元素爆发造成的伤害提升至<@ba.vup>{3:0%}</>，目标的法术抗性额外<@ba.vup>-{4:0}</>\n'
       + '神经损伤爆发：本次元素爆发直接造成的伤害提升至<@ba.vup>{5:0%}</>，冷却期间每秒额外受到<@ba.vup>{6:0}</>点无来源的元素持续伤害\n'
@@ -1185,6 +1226,121 @@ const elementChessGarrisons = {
 // 巴别塔 rider's OPEN-1 counting reads.
 const modeBonds = { active: [BABEL, ELEMENT] };
 
+// ===== W — 策略 (band) of the 巴别塔 layer ======================================================================
+//
+// A band is THREE official tables, exactly as 克莱门莎's chess is three and an item is four:
+//
+//   band + bandMeta   → act.bandDataListDict / ac.bandDataDict   (buildBands joins them; `desc` is the band row's
+//                                                                 `bandDesc`, `effectName` the effect's `effectName`)
+//   effect + buffs    → act.effectInfoDataDict / effectBuffInfoDataDict (buildEffects joins them; buildBands takes the
+//                                                                 buff's bb/bbStr as the band's blackboard)
+//
+// The maintainer's ruling (2026-10-14, rewards retuned and the band renamed the same day): a 策略 that records the
+// TEAM'S CUMULATIVE DAMAGE DEALT and hands out 巴别塔 operators, one per threshold — a random tier-3, a random
+// tier-4-or-above and the fixed 维什戴尔. The mechanism, its thresholds, its 口径 and its short-mode caveat are the
+// handler's (server/sim/content/bands/meta.js `round_start_gain_chess_by_team_damage`); this file carries DATA ONLY —
+// ids, thresholds, reward words and text — so a number moves in one place, the blackboard, and never in the code.
+// The 2026-10-14 rename moved the id `band_theresis` → `band_w`, the 名称 特蕾西娅 → W and the 效果名 传承 → 滥炸无休;
+// `sortId` 41, `totalHp` 24, the three thresholds and the reward list are untouched (docs/history/0.2.5.md §30.35b).
+//
+// The SAME DAY's copy update (docs/history/0.2.5.md §30.35c) reworded both text bodies and nothing else: the crossing
+// clause reads 「…点伤害后，在下一回合休整期开始时…」 (was 「…点伤害时，在跨过该伤害的下一回合休整期开始时…」) and each
+// reward reads 「一名…」 (was 「1名…」). The thresholds, the reward words, `bb.count`, the latches, the handler, the name
+// and the icon are the same records as before; only `bandDesc` and `effectDesc` below moved. `<维什戴尔>` is the
+// OFFICIAL way to name an operator in a band text — the shipped `band_amedic` writes `<预备干员-医疗>` and `<Touch>` in
+// plain angle brackets, and the game's rich-text vocabulary has no operator tag (`<@ba.vup>` value / `<@ba.vdown>`
+// demoted line / `<@ba.acrem>` item / `<@ba.rem>` are all of it) — and it stays inert for `shared/bandBonds.js`, which
+// resolves a bracketed name against the bond names only (`维什戴尔` is no bond; `<巴别塔>` still derives `babelShip`).
+//
+// `effectDesc` keeps the official BAND family's rich-text shape: the main sentence is plain and only the official 缺席
+// note is wrapped in `<@ba.vdown>…</>`, exactly as `aceffect_band_59` (贾维) and the 40 shipped rows do. **No
+// `<@ba.vup>` in either text**: none of the 41 official `aceffect_band_*` `effectDesc` values uses it (the 19 official
+// band texts that carry a tag use `<@ba.vdown>` for this note or `<@ba.acrem>` for an item's second line), so 10万 /
+// 30万 / 85万 and the two reward phrases stay unhighlighted like every other band number (the 自研 garrison_170 wraps
+// its numbers because the GARRISON family does — docs/history/0.2.4.md §29.17). `bandDesc` feeds BOTH data/bands.json
+// `desc` and its `descRaw` (tools/build-data.mjs `buildBands` → `textPair`), and the official `bandDataListDict` rows
+// carry the tag in `bandDesc`; this record keeps the plain spelling it has always had, so bands.json `descRaw` stays
+// byte-equal to `desc` here (data/effects.json `descRaw` is the rich one).
+//
+// The three thresholds live in `bb` (the official `atk_1` / `atk_2` numbering: `dmg_dealt_1..3`, all three numeric so
+// they cross `addDictRows` as numbers) and the reward list in `bbStr.reward`; the decoding of that list is documented on
+// the handler and in the effect text.
+//
+// `modeTypeList` is SINGLE+MULTI like the rest of the 巴别塔 family (the 训练 mode `LOCAL` is not offered: docs/DATA.md
+// §6 — this is a co-op/standard strategy). **`totalHp` 24 is the maintainer's own figure** (维护者定值, confirmed
+// 2026-10-14) — it is NOT derived from the 23–26 the family happens to occupy, so do not "correct" it toward a
+// neighbour. `sortId` 41 continues past 娜仁图亚 39 / Touch 40 so the new
+// band sorts last, and `victorCount` / `bandRewardModulus` are the field defaults every official row carries.
+//
+// `effectId` continues the official band-effect range (the highest shipped is `aceffect_band_61` for `band_amedic`;
+// `aceffect_band_43` is a hole the source tables left). It is deliberately NOT a 巴别塔-prefixed id: it goes through
+// `addDictRows(act.effectInfoDataDict, …)`, the same channel every other effect of this module uses, and the build
+// would warn if the id already existed.
+const band = {
+  band_w: {
+    bandId: 'band_w', sortId: 41, modeTypeList: ['SINGLE', 'MULTI'],
+    bandDesc: '【滥炸无休】累计对敌人造成10万、30万、85万点伤害后，在下一回合休整期开始时，'
+      + '分别获得一名随机三阶【巴别塔】干员、一名随机四阶及以上【巴别塔】干员、<维什戴尔>\n'
+      + '在<巴别塔>部分干员缺席时体验可能不完整',
+    totalHp: 24, effectId: 'aceffect_band_62', victorCount: 3, bandRewardModulus: 1,
+    updateTime: 1773475200,   // the same frozen season timestamp every official 0.2.5 band row carries
+  },
+};
+
+// ac.bandDataDict — the supplements buildBands reads (bandName / bandIconId / unlockDesc). `iconId` is the band's
+// 180×180 STRATEGY card. The official 40 are `…/arts/bandicon/icon_<charId token>.png`; this band has no official card
+// (it is 自研), so `public/assets/band/band_w.png` is the maintainer's OWN art, drawn 2026-10-14 (maintainer-provided
+// local art: it exists nowhere upstream, so `docs/research/07-assets.json` records it without a URL). The id follows
+// the official convention that names a band after its operator's own Latin name where the charId token is opaque —
+// `band_pith` (char_509_acast) and `band_clementia` (char_4231_clemnt) are the shipped precedents, W's charId is
+// `char_113_cqbw`. `band_w` / `icon_w` collide with nothing: not the 40 `bandDataListDict` rows, not the 41
+// `bandDataDict` rows (incl. the spare `band_zumama`), not data/bands.json, not `public/assets/band/`. See
+// docs/research/07-assets.json `bands.band_w`, docs/DATA.md §19.13 and docs/history/0.2.5.md §30.35b.
+const bandMeta = {
+  band_w: { bandId: 'band_w', bandName: 'W', bandIconId: 'icon_w', unlockDesc: null },
+};
+
+const bandEffect = {
+  aceffect_band_62: {
+    effectId: 'aceffect_band_62', effectType: 'BAND_INITIAL', effectCounterType: 'NONE', continuedRound: -1,
+    effectName: '滥炸无休',
+    effectDesc: '【滥炸无休】累计对敌人造成10万、30万、85万点伤害后，在下一回合休整期开始时，'
+      + '分别获得一名随机三阶【巴别塔】干员、一名随机四阶及以上【巴别塔】干员、<维什戴尔>\n'
+      + '<@ba.vdown>在<巴别塔>部分干员缺席时体验可能不完整</>',
+    effectDecoIconId: null, enemyPrice: 0,
+  },
+};
+// ONE buff, the shape every band effect uses (`{ key, countType, bb, bbStr }`; build-data's effectBuffs /
+// effectParams flatten exactly this). `bb` carries the three thresholds and the per-threshold reward count, `bbStr`
+// the reward list. The key is the handler it runs (server/sim/content/bands/meta.js `K[<key>]`), the same
+// key-is-the-implementation convention as `preparation_start_gain_chess_from_round` and the other 自研 rows:
+//
+//   key      'round_start_gain_chess_by_team_damage'
+//   bb       { dmg_dealt_1, dmg_dealt_2, dmg_dealt_3, count }    three thresholds + the reward count per threshold
+//   bbStr    { reward, bond }                                    the reward list, the bond the random roll draws from
+//
+// `count` is 1 — the effect grants ONE operator per threshold. The three thresholds are 100 000 / 300 000 / 850 000
+// (ascending, each paid once, summed across rounds); `reward` is a comma list decoded position by position against
+// the thresholds, with two reserved words and chess ids for everything else:
+//
+//   babel<n>       「1 random tier-<n> 巴别塔 operator」  → ctx.rollChess({ bond, tier: n })        (pool-bound)
+//   babel<n>plus   「1 random tier-<n>-or-above one」   → ctx.rollChess({ bond, minTier: n })    (pool-bound)
+//   <chessId>      that chess, granted whole            → ctx.grantChess(id, { requirePool: false })
+//
+// So the three thresholds currently read `babel3` (a random tier-3: 阿斯卡纶 / 可露希尔), `babel4plus` (a random T4+:
+// 魔王 / 伊内丝 / 赫德雷 / 逻各斯 AND the tier-6 维什戴尔 — 「及以上」 is what makes the surprise possible) and the
+// fixed `chess_char_6_04_babel_a` (维什戴尔). The decoding lives in the handler
+// (server/sim/content/bands/meta.js `randomBondTier`), never here.
+const bandEffectBuffs = {
+  aceffect_band_62: [{
+    key: 'round_start_gain_chess_by_team_damage', countType: 'NONE',
+    blackboard: blackboard(
+      { dmg_dealt_1: 100000, dmg_dealt_2: 300000, dmg_dealt_3: 850000, count: 1 },
+      { reward: 'babel3,babel4plus,chess_char_6_04_babel_a', bond: BABEL },
+    ),
+  }],
+};
+
 // ===== 克莱门莎 — maintainer fiat content (自选 → 盟约/商店棋) ======================================================
 //
 // 克莱门莎 (char_4231_clemnt) was a 自选 (DIY) operator; the maintainer turned her into a 盟约 operator — a visible
@@ -1301,3 +1457,4 @@ const clemensa = {
 
 export { bond, modeBond, effect, effectBuffs, effects, effectBuffsPledge, garrisons, chess, shopRows, normalLookup, characters, chessBonds, bondChessIds, chessGarrisons, modeBonds, clemensa, items, itemShopRows, itemEffects, itemEffectBuffs, itemTraps, researchItems };
 export { elementBond, elementModeBond, elementEffect, elementEffectBuffs, elementGarrisons, elementChess, elementShopRows, elementNormalLookup, elementChessBonds, elementChessGarrisons, garrisonKeep };
+export { band, bandMeta, bandEffect, bandEffectBuffs };

@@ -1,11 +1,13 @@
-// The 40 strategies (bands): prep side (server/sim/content/bands/meta.js through the real registry + dispatcher) and
+// The 41 strategies (bands): prep side (server/sim/content/bands/meta.js through the real registry + dispatcher) and
 // battle side (bands/battle.js with synthetic operators / enemies for exact numbers). Numbers are the band blackboards
-// (data/bands.json, research 01 §11); every band is covered (last test).
+// (data/bands.json, research 01 §11); every band is covered (last test). The 41st is the 自研 W (tools/content/
+// custom.mjs, docs/history/0.2.5.md): the 40 official season strategies plus this module's band.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeBattle, chessRec, enemyRec, checkInvariants } from '../helpers/battleHarness.js';
 import { makeMatch, give, giveItem, DATA } from '../match/harness.js';
 import { createRegistry } from '../../server/match/effectsMeta.js';
+import { makeCtx } from '../../server/match/effectsMeta.js';
 import { hasBattlePart, amedicCharsFor, PRIO_BAND_REVIVE } from '../../server/sim/content/bands/battle.js';
 import { bandMetaHandler, duckReplace } from '../../server/sim/content/bands/meta.js';
 import { PRIO_RESPAWN } from '../../server/sim/content/items/battle.js';
@@ -66,14 +68,14 @@ const slotOf = (id) => ({ kind: 'chess', id, basePrice: DATA.chess[id].tier === 
 // ---------------------------------------------------------------------------------------------------------------
 // data / wiring
 
-test('bands.js wires both parts: 28 bands with a prep handler, 10 with a battle part, 鸭爵 global, 歌利亚 = LP only', () => {
+test('bands.js wires both parts: 29 bands with a prep handler, 11 with a battle part, 鸭爵 global, 歌利亚 = LP only', () => {
   assert.equal(typeof bands.install, 'function');
   assert.equal(typeof bands.registerMeta, 'function');
   const ids = Object.keys(DATA.bands);
-  assert.equal(ids.length, 40);
+  assert.equal(ids.length, 41);
   const meta = ids.filter((id) => REG.has(`band:${id}`));
   const battle = ids.filter(hasBattlePart);
-  assert.equal(meta.length, 28);
+  assert.equal(meta.length, 29);
   assert.deepEqual(battle.sort(), ['band_amedic', 'band_amiya', 'band_chen', 'band_clementia', 'band_dusk', 'band_emperor', 'band_ermengard', 'band_humus', 'band_ioleta', 'band_mberry', 'band_qalaisa'].sort());
   assert.ok(REG.has('global:bands_ducklord'));
   const none = ids.filter((id) => !meta.includes(id) && !battle.includes(id));
@@ -510,9 +512,102 @@ test('娜仁图亚 见者有份: even rounds\' prep start — pick 1 of 2 differ
   cover('band_narant');
 });
 
+test('W 滥炸无休 (自研): the team\'s cumulative 造成伤害 crossing 10万 / 30万 / 85万 grants a random T3 【巴别塔】 operator / a random T4-or-above one / 维什戴尔 at the NEXT prep start, each once', () => {
+  const T = 'band_w';
+  const ROLL3 = 'babel3', ROLL4PLUS = 'babel4plus';
+  const T3 = ['chess_char_3_05_babel_a', 'chess_char_3_06_babel_a'];                       // 阿斯卡纶 / 可露希尔
+  const T4PLUS = ['chess_char_4_04_a', 'chess_char_4_25_a', 'chess_char_4_26_a',            // 伊内丝 / 魔王 / 华法琳
+    'chess_char_5_06_babel_a', 'chess_char_5_07_babel_a', 'chess_char_6_04_babel_a'];       // 赫德雷 / 逻各斯 / 维什戴尔
+  const HIDDEN_T5 = ['chess_char_5_04_a', 'chess_char_5_09_a'];                             // the hidden 华法琳 / 魔王
+  const WISADEL = 'chess_char_6_04_babel_a';
+  // the thresholds and the reward words come from the band's own blackboard (data/bands.json), never hard-coded here
+  const bb = DATA.bands[T].buffs.find((b) => b.key === 'round_start_gain_chess_by_team_damage');
+  assert.deepEqual([bb.bb.dmg_dealt_1, bb.bb.dmg_dealt_2, bb.bb.dmg_dealt_3], [100000, 300000, 850000]);
+  assert.equal(bb.bbStr.bond, 'babelShip');
+  assert.deepEqual(bb.bbStr.reward.split(','), [ROLL3, ROLL4PLUS, WISADEL]);
+  assert.deepEqual(DATA.bands[T].bondIds, ['babelShip'], 'the derived tie (shared/bandBonds.js: desc + bbStr.bond)');
+  const { m, ps, at, roundStart } = setup({ band: T, seed: 77 });
+  const got = spyGrants(ps);
+  const dealt = (n) => { ps.stats.dmgDealt = n; };
+  const step = (r, n) => { dealt(n); at(r); roundStart(r); };
+  // the candidate sets the two reserved words resolve to (the pool itself, via the same eligible() the roll uses)
+  const poolCandidates = (minTier, maxTier) => m.pool._eligible({ minTier, maxTier }).map(([id]) => id)
+    .filter((id) => DATA.chess[id].bonds.includes('babelShip') && !DATA.chess[id].isGolden).sort();
+  assert.deepEqual(poolCandidates(3, 3), T3, 'babel3: the two visible T3 巴别塔 operators');
+  assert.deepEqual(poolCandidates(4, 6), T4PLUS, 'babel4plus: every visible T4+ one, 维什戴尔 T6 included');
+  for (const id of [...T4PLUS, ...T3]) assert.equal(DATA.chess[id].isHidden, false, `${id} is a visible chess`);
+  for (const id of HIDDEN_T5) {
+    assert.equal(DATA.chess[id].isHidden, true, `${id} is a hidden chess`);
+    assert.equal(m.pool.has(id), false, 'hidden chess never enter the pool, so no roll can draw them');
+  }
+  step(1, 0);
+  assert.deepEqual(got, [], 'nothing below the first threshold');
+  step(2, 99999);                                        // crossed DURING R1: paid at the R2 prep start
+  assert.deepEqual(got, [], 'not yet reached');
+  step(3, 100000);
+  assert.equal(got.length, 1, 'R2 prep: 10万 → a random T3 巴别塔 operator');
+  assert.ok(T3.includes(got[0]), `10万 → a T3 巴别塔 operator, got ${got[0]}`);
+  assert.equal(m.gd.tierOf(got[0]), 3);
+  step(4, 100000);
+  assert.deepEqual(got, [got[0]], 'crossed once, never twice (the latch)');
+  ps.stats.dmgDealt = 400000; roundStart(5);
+  assert.equal(got.length, 2);
+  assert.ok(T4PLUS.includes(got[1]), `30万 → a T4-or-above 巴别塔 operator, got ${got[1]}`);
+  assert.ok(m.gd.tierOf(got[1]) >= 4);
+  step(6, 400000);
+  assert.equal(got.length, 2, 'the second threshold pays once too');
+  ps.stats.dmgDealt = 1200000; roundStart(7);
+  assert.equal(got.length, 3, '85万 → 维什戴尔');
+  assert.equal(got[2], WISADEL);
+  assert.deepEqual(got.filter((id) => id === WISADEL).length, got[2] === WISADEL ? 1 : 0);
+  assert.equal(got.filter((id) => T3.includes(id)).length, 1, 'exactly one T3 roll');
+  assert.deepEqual(ps.counters[`band:${T}:t1`], 1);
+  assert.deepEqual(ps.counters[`band:${T}:t2`], 1);
+  assert.deepEqual(ps.counters[`band:${T}:t3`], 1);
+  // The second threshold's floor is `minTier: 4` (ctx.rollChess / pool.roll): with only 维什戴尔 left eligible the T2
+  // roll MUST still land her — that is what 「四阶及以上」 promises, and the T6 「惊喜」 the maintainer asked for. The
+  // same round crosses 10万 too, so the T1 roll pays first, in ascending order (the latch test above).
+  const t6 = setup({ band: T, seed: 79 });
+  const t6got = spyGrants(t6.ps);
+  for (const id of T4PLUS.filter((x) => x !== WISADEL)) t6.m.pool.take(id, 99, { overdraw: true });
+  assert.equal(t6.m.pool.has(WISADEL), true, 'still a pooled chess');
+  assert.ok(t6.m.pool.left(WISADEL) > 0);
+  t6.ps.stats.dmgDealt = 300000; t6.at(2); t6.roundStart(2);
+  assert.equal(t6got.length, 2, 'one round crossing two thresholds pays both, ascending');
+  assert.ok(T3.includes(t6got[0]), `the T1 roll first, got ${t6got[0]}`);
+  assert.equal(t6got[1], WISADEL, '30万 with every T4 / T5 gone: the T6 维什戴尔 is the only T4+ candidate');
+  // A FIXED reward is never gated by the pool: 维什戴尔 is a tier-6 chess of a 5-copy pool, and the context's own
+  // grantChess comes back null for one while `requirePool: false` lands it (effectsMeta.js) — the contrast the band
+  // handler exists for. The context is built exactly as the dispatcher builds it (match/effectsMeta.js makeCtx).
+  assert.equal(DATA.chess[WISADEL].tier, 6);
+  const ctrl = setup({ band: T, seed: 78 });
+  ctrl.m.pool.take(WISADEL, 99, { overdraw: true });
+  assert.equal(ctrl.m.pool.left(WISADEL), 0, 'the pool is out of 维什戴尔');
+  const ctx = makeCtx(ctrl.m, ctrl.ps, { kind: 'band', key: `band:${T}`, bandId: T, band: DATA.bands[T] }, 'onRoundStart', {});
+  assert.equal(ctx.grantChess(WISADEL, { source: 'band' }), null, 'pool-bound grant: refused');
+  assert.equal(ctrl.m.pool.left(WISADEL), 0);
+  assert.ok(ctx.grantChess(WISADEL, { requirePool: false, source: 'band' }), 'requirePool: false: lands anyway');
+  // 30万: the random roll IS pool-bound — an empty pool leaves its latch unset (retried, never lost).
+  // `take(…, { overdraw: true })` drives the entry NEGATIVE, so the give-back has to cover the overdraw before any
+  // copy is really free again (`.entries.get(id).left` is −91 after the take above).
+  const t5 = setup({ band: T, seed: 78 });
+  for (const id of T4PLUS) t5.m.pool.take(id, 99, { overdraw: true });
+  assert.deepEqual(T4PLUS.map((id) => t5.m.pool.left(id)), T4PLUS.map(() => 0));
+  t5.ps.stats.dmgDealt = 900000; t5.at(2); t5.roundStart(2);
+  assert.ok(handIds(t5.ps).includes(WISADEL), 'the fixed reward lands');
+  assert.equal(t5.ps.counters[`band:${T}:t1`], 1, 'the T3 roll is a different pool and still pays');
+  assert.equal(t5.ps.counters[`band:${T}:t2`], undefined, 'no T4+ operator left: the latch stays open');
+  assert.equal(t5.ps.counters[`band:${T}:t3`], 1, 'the fixed T3 threshold is not pool-bound');
+  t5.m.pool.give(WISADEL, 100);
+  assert.equal(t5.m.pool.left(WISADEL), t5.m.pool.cap(WISADEL), 'the give-back refills the entry (its take went negative)');
+  assert.ok(t5.m.pool.left(WISADEL) > 0);
+  t5.at(3); t5.roundStart(3);
+  assert.equal(t5.ps.counters[`band:${T}:t2`], 1, 'the next prep retries and lands it');
+  assert.ok(handIds(t5.ps).includes(WISADEL));
+  cover(T);
+});
 // ---------------------------------------------------------------------------------------------------------------
 // battle side
-
 function op(id, o = {}) {
   return chessRec({
     id, profession: o.profession ?? 'WARRIOR', bonds: o.bonds ?? [], tier: o.tier ?? 1, golden: !!o.golden,

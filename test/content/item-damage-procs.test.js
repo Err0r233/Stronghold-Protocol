@@ -7,7 +7,10 @@ for (const [item, status] of [['5_01', 'palsy'], ['5_02', 'cold']]) for (const q
   const id = `chess_item_${item}_e_${quality}`;
   test(`${id}: Ascalon poison still procs ${status} while she cannot attack`, () => {
     const h = makeBattle({ autoFinish: false, hooks: ['damaged', 'attack', 'statusApplied'], captureNoisy: true,
-      units: [{ uid: 1, diy: { slot: 6, charId: 'char_4132_ascln', skillIndex: 0 }, row: 10, col: 5, items: [id] }],
+      // 阿斯卡纶 was promoted to a 「巴别塔」 shop chess (chess_char_3_05_babel_a/_b): her charId left `backups.json units`
+      // and `diy.ownedPool`, so the old 自选 slot path (slot 6, elite ⇒ `_b`, T3 equivalent of E2 Lv60 with her module) is
+      // gone. The elite `_b` record is fielded directly, exactly as test/content/op_ascln.test.js does it.
+      units: [{ uid: 1, chessId: 'chess_char_3_05_babel_b', skillIndex: 0, row: 10, col: 5, items: [id] }],
       defs: { enemies: { dummy: enemyRec({ key: 'dummy', hp: 1e7, atk: 0, speed: 0 }) } },
     });
     h.step(); const u = h.unit(1), e = h.spawn('dummy', { pos: [10, 6] });

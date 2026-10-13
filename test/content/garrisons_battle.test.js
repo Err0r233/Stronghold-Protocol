@@ -386,9 +386,12 @@ test('dealdamage 逻各斯 169 / 阿斯卡纶 166 (自研 巴别塔): every chec
   assert.deepEqual(one('garrison_166_a', 1), { babelShip: 2, raidShip: 2 }, '阿斯卡纶 +2 per 3000');
   assert.deepEqual(one('garrison_166_b', 1), { babelShip: 4, raidShip: 4 }, '精锐 +4');
   assert.deepEqual(one('garrison_166_a', 9), { babelShip: 6, raidShip: 6 }, '阿斯卡纶 cap 6');
-  assert.deepEqual(one('garrison_169_a', 1), { babelShip: 6, arcaneShip: 6 }, '逻各斯 +6 per 8000');
-  assert.deepEqual(one('garrison_169_b', 1), { babelShip: 8, arcaneShip: 8 }, '精锐 +8');
-  assert.deepEqual(one('garrison_169_a', 9), { babelShip: 24, arcaneShip: 24 }, '逻各斯 cap 24');
+  // 逻各斯's target list gained 精准 on 2026-10-13 (maintainer, docs/DATA.md §19.10): the handler now pays ALL THREE
+  // listed bonds. The per-id loop above (scenario() derives its targets from `bbStr.bond_id`) already covers the
+  // three-bond shape; these literals name it. check_damage / bond_add_count / max_add_count_per_battle are unchanged.
+  assert.deepEqual(one('garrison_169_a', 1), { babelShip: 6, arcaneShip: 6, preciShip: 6 }, '逻各斯 +6 per 8000');
+  assert.deepEqual(one('garrison_169_b', 1), { babelShip: 8, arcaneShip: 8, preciShip: 8 }, '精锐 +8');
+  assert.deepEqual(one('garrison_169_a', 9), { babelShip: 24, arcaneShip: 24, preciShip: 24 }, '逻各斯 cap 24');
 });
 
 test('ADD_BOND 华法琳 72: the front operator gets garrison_95 (own active bonds +1 / +2), capped at the data\'s 7 / 14 (GitHub #175)', () => {

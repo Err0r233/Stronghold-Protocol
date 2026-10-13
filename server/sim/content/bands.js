@@ -1,4 +1,5 @@
-// server/sim/content/bands.js — the 40 strategies (bands, 策略/分队), battle side + prep side (DESIGN §7, research 01 §11).
+// server/sim/content/bands.js — the 41 strategies (bands, 策略/分队), battle side + prep side (DESIGN §7, research 01 §11).
+// The 40 official season strategies plus the 自研 W (tools/content/custom.mjs, docs/DATA.md §19.13).
 //
 // Entry point imported by content/index.js:
 //   install(battle)          IN_BATTLE band buffs of every player of the battle — bands/battle.js

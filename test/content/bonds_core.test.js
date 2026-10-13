@@ -929,6 +929,185 @@ test('卡西米尔 6: blocking members pulse 120 % ATK true damage + 0.1 s stun 
 });
 
 // ---------------------------------------------------------------------------------------------------------------------
+// 巴别塔 (babelShip) — the maintainer's 自研 core bond. docs/research/15-babel-bond.md §1 as ruled on 2026-10-13:
+// the 一档 rider is +4 %/kind (cap +20 %) and an INDEPENDENT final multiplier (its own `atkMul` buff key, never a term of
+// the 直接乘算 `atkPct` bucket); the 二档 numbers are 1.20 + 0.0008·L (cap 2.00) over DEF/RES 0.20 + 0.0004·L (cap 0.60),
+// taken as the STRONGEST source against 精准's own 30 %. The tier-2 aura was inert until this batch: the reader asked
+// for `cmd_damage_scale_*` / `cmd_penetrate_*` keys no record defined (num() fell back to scale 1, penetration 0).
+
+const BABEL_L1 = 'bond:babel:l1';
+const BABEL_RIDER = 'bond:babel:rider';
+
+/** 3 巴别塔 members; `r1_a` carries every `kinds` entry, and only the kinds NOT in `dead` are live in the match. */
+function babelRider(kinds, dead = []) {
+  const live = kinds.filter((k) => !dead.includes(k));
+  const list = [['r1_a', ['babelShip', ...kinds]], ['r2_a', ['babelShip']], ['r3_a', ['babelShip']]];
+  return makeBattle({
+    defs: defsOf(list), units: lineup(['r1_a', 'r2_a', 'r3_a']),
+    bonds: { babelShip: bondOn(3, 0, null, [3, 6]), ...Object.fromEntries(live.map((k) => [k, { count: 0, active: false, tier: 0, layers: 0 }])) },
+  });
+}
+
+test('巴别塔 一档: members ATK / maxHP ×(1 + 0.12 + 0.008L), live layers, non-members untouched', () => {
+  const bb = bondBb('babelShip');
+  assert.deepEqual([bb.base_atk, bb.atk_per_stack, bb.base_max_hp, bb.max_hp_per_stack], [0.12, 0.008, 0.12, 0.008]);
+  const list = [['b1_a', ['babelShip']], ['b2_a', ['babelShip']], ['b3_a', ['babelShip']], ['none_a', ['preciShip']]];
+  const h = makeBattle({ defs: defsOf(list), units: lineup(list.map((x) => x[0])), bonds: { babelShip: bondOn(3, 10) } });
+  h.step(1);
+  close(h.unit('b1_a').s.atk, 1000 * (1 + 0.12 + 0.008 * 10));
+  close(h.unit('b1_a').s.maxHp, 10000 * (1 + 0.12 + 0.008 * 10));
+  const mods = buffOf(h.unit('b2_a'), BABEL_L1).mods;
+  close(mods.atkPct, 0.12 + 0.008 * 10, 1e-9, 'the main effect is the additive bucket');
+  close(mods.hpPct, 0.12 + 0.008 * 10, 1e-9);
+  close(h.unit('none_a').s.atk, 1000, 1e-6, 'non-members');
+  close(h.unit('none_a').s.maxHp, 10000, 1e-6);
+  // the refresh rides `layerGain` → battle.after(0) (the layer is written after the hook)
+  h.b.addLayers('p1', 'babelShip', 20, 'test');
+  h.step(2);
+  close(h.unit('b3_a').s.atk, 1000 * (1 + 0.12 + 0.008 * 30), 1e-6, 'live layers');
+  close(h.unit('b3_a').s.maxHp, 10000 * (1 + 0.12 + 0.008 * 30), 1e-6);
+  checkInvariants(h.b);
+});
+
+test('巴别塔 一档 rider: +4 %/kind, cap +20 %, and it MULTIPLIES the additive bucket instead of joining it', () => {
+  const bb = bondBb('babelShip');
+  assert.deepEqual([bb.other_bond_kind_atk, bb.other_bond_kind_atk_cap], [0.04, 0.20]);
+  const kinds = ['yanShip', 'preciShip', 'raidShip', 'indomShip', 'arcaneShip', 'swiftShip'];
+  // (a) four live kinds: rider 0.16, on its own buff key as an `atkMul` (never inside `atkPct`)
+  const h4 = babelRider(kinds.slice(0, 4));
+  h4.step(1);
+  const u4 = h4.unit('r1_a');
+  assert.deepEqual(buffOf(u4, BABEL_L1).mods, { atkPct: 0.12, hpPct: 0.12 });
+  close(buffOf(u4, BABEL_RIDER).mods.atkMul, 1.16, 1e-12, 'rider = 0.04 × 4');
+  // 1000 × 1.12 × 1.16 = 1299.2; the old writing (rider inside the additive bucket) would read 1000 × (1 + 0.12 + 0.16)
+  close(u4.s.atk, 1000 * 1.12 * 1.16);
+  assert.notEqual(Math.round(u4.s.atk * 100) / 100, 1280, 'not the additive reading');
+  close(h4.unit('r2_a').s.atk, 1000 * 1.12 * 1.16, 1e-6, 'every member, not only the one carrying the kinds');
+  close(u4.s.maxHp, 10000 * 1.12, 1e-6, 'ATK only — max HP keeps the main effect alone');
+  // (b) the 5th kind is the last one that pays: 0.04 × 6 = 0.24 is clamped to the +20 % cap (5 kinds)
+  const h6 = babelRider(kinds);
+  h6.step(1);
+  close(buffOf(h6.unit('r1_a'), BABEL_RIDER).mods.atkMul, 1.20, 1e-12, 'capped at +20 %');
+  close(h6.unit('r1_a').s.atk, 1000 * 1.12 * 1.20);
+  assert.ok(h6.unit('r1_a').s.atk > u4.s.atk, 'the 5th kind still pays');
+  // (c) OPEN-1: a kind the match cannot activate (absent from the player's snapshot) is not counted, and no stale buff
+  const h0 = babelRider(['yanShip'], ['yanShip']);
+  h0.step(1);
+  assert.equal(buffOf(h0.unit('r1_a'), BABEL_RIDER), null, 'no rider buff at all');
+  close(h0.unit('r1_a').s.atk, 1000 * 1.12);
+  for (const h of [h4, h6, h0]) checkInvariants(h.b);
+});
+
+/** 6 巴别塔 members: a1 (listed first ⇒ the lower unit id), a2, one probe beside each (p1 beside a1, p2 beside a2),
+ *  two more far away, and one standing enemy. `preci` puts every member into 精准's member list (its 二档 30 %). */
+function babelSix({ layers = 0, atk2 = 1000, preci = false, def = 0, res = 0, setup } = {}) {
+  const bonds = { babelShip: bondOn(6, layers, null, [3, 6]) };
+  const list = [
+    ['a1_a', ['babelShip']], ['a2_a', ['babelShip'], { stats: { atk: atk2 } }],
+    ['p1_a', ['babelShip']], ['p2_a', ['babelShip']], ['m5_a', ['babelShip']], ['m6_a', ['babelShip']],
+  ];
+  if (preci) { for (const m of list) m[1].push('preciShip'); bonds.preciShip = bondOn(3, 0, 2, [2, 3]); }
+  const defs = defsOf(list);
+  defs.enemies.e_aura = enemyRec({ key: 'e_aura', hp: 1e8, def, res, speed: 0, atk: 0 });
+  return makeBattle({
+    defs,
+    units: [
+      { chessId: 'a1_a', row: 10, col: 3 }, { chessId: 'a2_a', row: 10, col: 7 },
+      { chessId: 'p1_a', row: 10, col: 4 }, { chessId: 'p2_a', row: 10, col: 6 },
+      { chessId: 'm5_a', row: 12, col: 3 }, { chessId: 'm6_a', row: 12, col: 8 },
+    ],
+    bonds, enemies: [{ key: 'e_aura', time: 0, route: 0 }],
+    autoFinish: false, timeLimit: 60, hooks: ['hit', 'death'], captureNoisy: true, setup,
+  });
+}
+
+/** Deal `dmg` from `id` to the standing enemy and return the HP it lost. */
+const hitBy = (h, id, dmg) => { const e = h.enemies()[0]; const hp = e.hp; h.b.dealDamage(h.unit(id), e, dmg); return hp - e.hp; };
+const TRUE_HIT = { amount: 1000, type: 'true', canDodge: false };
+
+test('巴别塔 二档 指挥: damage ×(1.20 + 0.0008L) capped at 2.00, inside the eight tiles only', () => {
+  const bb = bondBb('babelShip');
+  assert.deepEqual([bb.base_damage_scale_show, bb.damage_scale_per_stack, bb.damage_scale_cap], [1.20, 0.0008, 2.00]);
+  for (const [L, want] of [[0, 1.20], [250, 1.40], [500, 1.60], [1000, 2.00], [2000, 2.00]]) {
+    const h = babelSix({ layers: L });
+    h.step(1);
+    close(hitBy(h, 'p1_a', TRUE_HIT), 1000 * want, 1e-6, `L=${L} 八格内`);
+    close(hitBy(h, 'a1_a', TRUE_HIT), 1000 * want, 1e-6, `L=${L} the 指挥 itself counts`);
+    close(hitBy(h, 'm5_a', TRUE_HIT), 1000, 1e-6, `L=${L} 八格外`);
+    checkInvariants(h.b);
+  }
+});
+
+test('巴别塔 二档 指挥: elected at battle start by the highest ATK, ties by unit id', () => {
+  const tie = babelSix();
+  tie.step(1);
+  close(hitBy(tie, 'p1_a', TRUE_HIT), 1200, 1e-6, 'equal ATK → the lower unit id (a1, listed first)');
+  close(hitBy(tie, 'p2_a', TRUE_HIT), 1000, 1e-6, 'a2 is not the 指挥');
+  checkInvariants(tie.b);
+  const strong = babelSix({ atk2: 2000 });
+  strong.step(1);
+  close(hitBy(strong, 'p2_a', TRUE_HIT), 1200, 1e-6, 'the highest ATK wins, not the deployment order');
+  close(hitBy(strong, 'p1_a', TRUE_HIT), 1000, 1e-6);
+  checkInvariants(strong.b);
+});
+
+test('巴别塔 二档 指挥: a knock-out hands over one tick later (the aura lags), and a revive keeps the command', () => {
+  const h = babelSix();
+  h.step(1);
+  const a1 = h.unit('a1_a');
+  close(hitBy(h, 'p1_a', TRUE_HIT), 1200, 1e-6, 'premise: a1 is the 指挥');
+  h.b.dealDamage(h.enemies()[0], a1, { amount: 1e12, type: 'true', canDodge: false });
+  assert.ok(!a1.alive, 'a1 knocked out');
+  close(hitBy(h, 'p1_a', TRUE_HIT), 1200, 1e-6, 'the same tick still reads the old 指挥 (the re-pick is deferred)');
+  h.step(1);
+  close(hitBy(h, 'p1_a', TRUE_HIT), 1000, 1e-6, 'a1 is gone — its aura is off');
+  close(hitBy(h, 'p2_a', TRUE_HIT), 1200, 1e-6, 'the next-highest 巴别塔 member took over');
+  checkInvariants(h.b);
+
+  // A 复活 / 不屈-style redeploy inside the death hook (priority 100, before the bond's own): the deferred check then
+  // finds it alive + deployed and keeps the command.
+  const rev = babelSix({ setup: (b) => { b.on('death', (c) => { if (c.unit.defId === 'a1_a') b.redeploy(c.unit, { free: true }); }, { priority: 100 }); } });
+  rev.step(1);
+  const r1 = rev.unit('a1_a');
+  rev.b.dealDamage(rev.enemies()[0], r1, { amount: 1e12, type: 'true', canDodge: false });
+  rev.step(2);
+  assert.ok(r1.alive && r1.deployed, 'the redeploy revived a1');
+  close(hitBy(rev, 'p1_a', TRUE_HIT), 1200, 1e-6, 'the command is kept');
+  close(hitBy(rev, 'p2_a', TRUE_HIT), 1000, 1e-6);
+  checkInvariants(rev.b);
+});
+
+test('巴别塔 二档 指挥: DEF/RES ignore = min(0.60, 0.20 + 0.0004L), the STRONGEST source — never added to 精准 30 %', () => {
+  const bb = bondBb('babelShip');
+  assert.deepEqual([bb.base_def_penetrate, bb.def_penetrate_per_stack, bb.base_res_penetrate, bb.res_penetrate_per_stack, bb.penetrate_cap],
+    [0.20, 0.0004, 0.20, 0.0004, 0.60]);
+  const PHYS = { amount: 1000, type: 'phys', canDodge: false };
+  const ARTS = { amount: 1000, type: 'arts', canDodge: false };
+  // phys vs DEF 500: the landed damage is (1000 − 500 × (1 − ignore)) × the aura's own scale; the 5 % floor (50) never
+  // binds here. At 250 layers the aura scale is 1.40 (asserted above) and the bond's ignore is 0.20 + 0.0004·250 = 0.30.
+  const h = babelSix({ layers: 250, def: 500, res: 30 });
+  h.step(1);
+  close(hitBy(h, 'p1_a', PHYS), 1.40 * 650, 1e-6, '八格内: 1.40 × (1000 − 500 × 0.70)');
+  close(hitBy(h, 'm5_a', PHYS), 500, 1e-6, '八格外: neither the aura nor its penetration');
+  close(hitBy(h, 'p1_a', ARTS), 1.40 * 1000 * (1 - 30 * 0.70 / 100), 1e-6, 'RES 30 → 21 %, then ×1.40');
+  checkInvariants(h.b);
+  // 精准 二档 carries its own 30 % as a SOURCE STAT: the pair is one axis, so the stronger one holds. Adding them would
+  // give 0.30 + 0.30 = 0.60 ⇒ 1.40 × (1000 − 500 × 0.40) = 1120 instead of 910.
+  const hp = babelSix({ layers: 250, def: 500, res: 30, preci: true });
+  hp.step(1);
+  close(hp.unit('p1_a').s.defIgnorePct, 0.30, 1e-9, 'premise: 精准 二档 gives every member 30 %');
+  close(hitBy(hp, 'p1_a', PHYS), 1.40 * 650, 1e-6, 'max(0.30, 0.30) = 0.30 — not 0.60');
+  close(hitBy(hp, 'p1_a', ARTS), 1.40 * 1000 * (1 - 30 * 0.70 / 100), 1e-6, 'RES likewise');
+  checkInvariants(hp.b);
+  // the cap: 0.20 + 0.0004·2000 = 1.00 → 0.60 (and the aura sits at its own cap, ×2.00)
+  const hc = babelSix({ layers: 2000, def: 500, res: 30 });
+  hc.step(1);
+  close(hitBy(hc, 'p1_a', PHYS), 2.00 * 800, 1e-6, 'cap 0.60 → 2.00 × (1000 − 500 × 0.40)');
+  close(hitBy(hc, 'p1_a', ARTS), 2.00 * 1000 * (1 - 30 * 0.40 / 100), 1e-6, 'RES: cap 0.60 → 12 %');
+  checkInvariants(hc.b);
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
 // cross-cutting
 
 test('inactive core bonds do nothing (layers alone are not enough)', () => {

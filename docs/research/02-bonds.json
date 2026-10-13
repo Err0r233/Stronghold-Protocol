@@ -10039,11 +10039,11 @@
         null,
         "res_penetrate_per_stack"
       ],
-      "desc": "【巴别塔】干员攻击力、生命值提升（受层数影响）\n每有一名【巴别塔】干员所属的其它盟约种类与已计入的不同，全体【巴别塔】干员额外获得攻击力提升（最高+10%）\n<在场6名不同【巴别塔】干员>战斗开始时，攻击力最高的【巴别塔】干员成为【指挥】，其周围八格内的友方干员造成的伤害提升至110%，攻击时无视20%的防御力和法术抗性；【指挥】被击倒时，指挥权移交给场上攻击力最高的下一名【巴别塔】干员",
-      "descRaw": "【巴别塔】干员<@ba.vup>攻击力</>、<@ba.vup>生命值</>提升<@autochess.gray>（受层数影响）</>\n每有一名【巴别塔】干员所属的其它盟约种类与已计入的不同，全体【巴别塔】干员额外获得<@ba.vup>攻击力</>提升（最高<@ba.vup>+10%</>）\n<在场<@autochess.dgreen>6</>名不同【巴别塔】干员>战斗开始时，攻击力最高的【巴别塔】干员成为<@ba.vup>【指挥】</>，其周围八格内的友方干员造成的伤害提升至<@ba.vup>110%</>，攻击时无视<@ba.vup>20%</>的防御力和法术抗性；<@ba.vup>【指挥】</>被击倒时，指挥权移交给场上攻击力最高的下一名<@ba.vup>【巴别塔】</>干员",
-      "effectDesc": "【巴别塔】干员攻击力、生命值+{0:0%}（受层数影响），每有一名【巴别塔】干员所属的其它盟约种类与已计入的不同，全体【巴别塔】干员额外获得攻击力+{4:0%}（最高+{5:0%}）\n<在场6名不同【巴别塔】干员>战斗开始时，攻击力最高的【巴别塔】干员成为【指挥】，其周围八格内的友方干员造成的伤害提升至{2:0%}（受层数影响，最高180%），攻击时无视{3:0%}的防御力和{6:0%}的法术抗性（均受层数影响，最高60%）",
-      "effectDescResolved": "【巴别塔】干员攻击力、生命值+(12+0.8×L)%（受层数影响），每有一名【巴别塔】干员所属的其它盟约种类与已计入的不同，全体【巴别塔】干员额外获得攻击力+2%（最高+10%）\n<在场6名不同【巴别塔】干员>战斗开始时，攻击力最高的【巴别塔】干员成为【指挥】，其周围八格内的友方干员造成的伤害提升至(110+0.07×L)%（受层数影响，最高180%），攻击时无视(20+0.04×L)%的防御力和法术抗性（均受层数影响，最高60%）",
-      "effectDescRaw": "【巴别塔】干员攻击力、生命值<@ba.vup>+{0:0%}</><@ba.acrem>（受层数影响）</>，每有一名【巴别塔】干员所属的其它盟约种类与已计入的不同，全体【巴别塔】干员额外获得<@ba.vup>攻击力+{4:0%}</>（最高<@ba.vup>+{5:0%}</>）\n<在场<@ba.vup>6</>名不同【巴别塔】干员>战斗开始时，攻击力最高的【巴别塔】干员成为【指挥】，其周围八格内的友方干员造成的伤害提升至<@ba.vup>{2:0%}</><@ba.acrem>（受层数影响，最高180%）</>，攻击时无视<@ba.vup>{3:0%}</>的防御力和<@ba.vup>{6:0%}</>的法术抗性<@ba.acrem>（均受层数影响，最高60%）</>",
+      "desc": "【巴别塔】干员攻击力、生命值提升（受层数影响）\n每有一名【巴别塔】干员所属的其它盟约种类与已计入的不同，全体【巴别塔】干员额外获得攻击力提升（最高+20%）\n<在场6名不同【巴别塔】干员>战斗开始时，攻击力最高的【巴别塔】干员成为【指挥】。【指挥】及其周围八格内的友方干员造成的伤害提升至120%，攻击时无视20%的防御力和法术抗性。【指挥】被击倒时，【指挥】移交给场上攻击力最高的下一名【巴别塔】干员",
+      "descRaw": "【巴别塔】干员<@ba.vup>攻击力</>、<@ba.vup>生命值</>提升<@autochess.gray>（受层数影响）</>\n每有一名【巴别塔】干员所属的其它盟约种类与已计入的不同，全体【巴别塔】干员额外获得<@ba.vup>攻击力</>提升（最高<@ba.vup>+10%</>）\n<在场<@autochess.dgreen>6</>名不同【巴别塔】干员>战斗开始时，攻击力最高的【巴别塔】干员成为<@ba.vup>【指挥】</>。<@ba.vup>【指挥】</>及其周围八格内的友方干员造成的伤害提升至<@ba.vup>120%</>，攻击时无视<@ba.vup>20%</>的防御力和法术抗性。<@ba.vup>【指挥】</>被击倒时，<@ba.vup>【指挥】</>移交给场上攻击力最高的下一名<@ba.vup>【巴别塔】</>干员",
+      "effectDesc": "【巴别塔】干员攻击力、生命值+{0:0%}（受层数影响），每有一名【巴别塔】干员所属的其它盟约种类与已计入的不同，全体【巴别塔】干员额外获得攻击力+{4:0%}（最高+{5:0%}）\n<在场6名不同【巴别塔】干员>战斗开始时，攻击力最高的【巴别塔】干员成为【指挥】，【指挥】及其周围八格内的友方干员造成的伤害提升至{2:0%}（受层数影响），攻击时无视{3:0%}的防御力和{6:0%}的法术抗性（受层数影响）",
+      "effectDescResolved": "【巴别塔】干员攻击力、生命值+(12+0.8×L)%（受层数影响），每有一名【巴别塔】干员所属的其它盟约种类与已计入的不同，全体【巴别塔】干员额外获得攻击力+4%（最高+20%）\n<在场6名不同【巴别塔】干员>战斗开始时，攻击力最高的【巴别塔】干员成为【指挥】，其周围八格内的友方干员造成的伤害提升至(120+0.08×L)%（受层数影响），攻击时无视(20+0.04×L)%的防御力和法术抗性（受层数影响）",
+      "effectDescRaw": "【巴别塔】干员攻击力、生命值<@ba.vup>+{0:0%}</><@ba.acrem>（受层数影响）</>，每有一名【巴别塔】干员所属的其它盟约种类与已计入的不同，全体【巴别塔】干员额外获得<@ba.vup>攻击力+{4:0%}</>（最高<@ba.vup>+{5:0%}</>）\n<在场<@ba.vup>6</>名不同【巴别塔】干员>战斗开始时，攻击力最高的【巴别塔】干员成为【指挥】，<@ba.vup>【指挥】</>及其周围八格内的友方干员造成的伤害提升至<@ba.vup>{2:0%}</><@ba.acrem>（受层数影响）</>，攻击时无视<@ba.vup>{3:0%}</>的防御力和<@ba.vup>{6:0%}</>的法术抗性<@ba.acrem>（受层数影响）</>",
       "effectBuffs": [
         {
           "key": "env_gbuff_new",
@@ -10053,11 +10053,11 @@
             "atk_per_stack": 0.008,
             "base_max_hp": 0.12,
             "max_hp_per_stack": 0.008,
-            "other_bond_kind_atk": 0.02,
-            "other_bond_kind_atk_cap": 0.1,
-            "base_damage_scale_show": 1.1,
-            "damage_scale_per_stack": 0.0007,
-            "damage_scale_cap": 1.8,
+            "other_bond_kind_atk": 0.04,
+            "other_bond_kind_atk_cap": 0.2,
+            "base_damage_scale_show": 1.2,
+            "damage_scale_per_stack": 0.0008,
+            "damage_scale_cap": 2.0,
             "base_def_penetrate": 0.2,
             "def_penetrate_per_stack": 0.0004,
             "base_res_penetrate": 0.2,
@@ -10087,20 +10087,20 @@
           },
           {
             "need": "a distinct OTHER bond kind among the members",
-            "effect": "For every bond kind other than 巴别塔 carried by a 巴别塔 member that has not been counted yet, every member gains ATK +2%, capped at +10% (5 kinds). Only bond kinds available in this match count: a bond in mode.inactiveBondIds is skipped (maintainer decision OPEN-1, 2026-10-12)."
+            "effect": "For every bond kind other than 巴别塔 carried by a 巴别塔 member that has not been counted yet, every member gains ATK +4%, capped at +20% (5 kinds), applied as an INDEPENDENT FINAL multiplier (its own `atkMul` buff key, outside the 直接乘算 atkPct bucket; ATK only). Only bond kinds available in this match count: a bond in mode.inactiveBondIds is skipped (maintainer decision OPEN-1, 2026-10-12)."
           },
           {
             "need": "6 distinct 巴别塔 on board",
-            "effect": "At battle start the highest-ATK 巴别塔 member (ATK snapshot, deployment order on ties) becomes 【指挥】. Allies within its 8 surrounding tiles (full ring, the aura follows its position, own units only) deal damage x(1.10 + 0.0007*L), capped at 1.80, and ignore (0.20 + 0.0004*L) of DEF and RES, capped at 0.60 — the same defIgnorePct / resIgnorePct mods as 精准, strongest wins, never summed. On the 【指挥】 being knocked out the ring passes to the highest-ATK living member still on the field (death hook after 不屈(10)/阿戈尔(11), order −5); retreats, leaks and substitute swaps do not hand it over; no member left = no aura."
+            "effect": "At battle start the highest-ATK 巴别塔 member (ATK snapshot, deployment order on ties) becomes 【指挥】. Allies within its 8 surrounding tiles (full ring, the aura follows its position, own units only) deal damage x(1.20 + 0.0008*L), capped at 2.00, and ignore min(0.20 + 0.0004*L, 0.60) of DEF and RES — 精准 tier 2 carries its own 30 % as a SOURCE STAT that the damage pipeline adds back on top of the instance (server/sim/damage.js landedPreShield), so this bond writes only the part above the source's own value and the pair lands as max(stat, pen): strongest wins, never summed. On the 【指挥】 being knocked out the ring passes to the highest-ATK living member still on the field (the passive death hook defers the re-pick by one tick and re-reads alive / deployed, so a 不屈 / 阿戈尔 revive keeps it); retreats, leaks and substitute swaps do not hand it over; no member left = no aura."
           }
         ],
         "formulas": {
-          "atkMultiplier": "1 + 0.12 + 0.008*L (members; + other_bond_kind_atk x distinct other kinds, cap 0.10)",
+          "atkMultiplier": "1 + 0.12 + 0.008*L (members, the additive bucket) x (1 + min(other_bond_kind_atk x distinct other kinds, other_bond_kind_atk_cap)) — the rider is its own atkMul buff, a FINAL multiplier, ATK only",
           "maxHpMultiplier": "1 + 0.12 + 0.008*L",
-          "auraDamageTo": "min(1.10 + 0.0007*L, 1.80)",
+          "auraDamageTo": "min(1.20 + 0.0008*L, 2.00)",
           "penetrate": "min(0.20 + 0.0004*L, 0.60) on DEF and RES (strongest-wins with 精准 tier 2)"
         },
-        "caps": "aura damage 1.80, DEF/RES ignore 0.60, bond rider +10%; layers 0-999 (BOND_LAYER_CAP)",
+        "caps": "aura damage 2.00, DEF/RES ignore 0.60, bond rider +20%; layers 0-999 (BOND_LAYER_CAP)",
         "layerGain": "Per round / per battle: 伊内丝 休整期结束 +5 / +10 (elite, the only 战斗外 source besides 可露希尔); 可露希尔 获得时 +4 / +8 (doubled/tripled by 投资人 while active); 逻各斯 战斗中 every 5000 damage dealt +6 / +8 (cap 24 / 32); 阿斯卡纶 战斗中 every 4000 damage dealt +2 / +4 (cap 6 / 12); 奥达 战斗中 every 800 damage taken +1 / +2 (cap 8 / 16); 阿米娅·医疗 战斗中 every 1200 HP actually healed +2 / +4 to 巴别塔 AND 奥术 (cap 10 / 20); 华法琳 战斗开始时 hands the tile in front of her a trait that adds +1 / +2 to its own active bonds per skill cast (the official garrison_72 → 95 pair, cap 7 / 14 per battle; the remake's 4 / 8 override was withdrawn 2026-10-13, docs/DATA.md §19.8); 魔王 adds +1 / +2 to a 战斗中 layer gain of the operator in front of her; 助力 (with 暴行) prep end +2 / +4 to every active bond. FOUR of the sources are 战斗中 rows and grant nothing where flags.layerGainsEnabled is false (联防 / 首领 / 隐秘核心): there the per-round floor is 可露希尔 + 伊内丝 alone (maintainer-accepted, 2026-10-12). Budget ~330-570 layers over 13 rounds (the design doc §4).",
         "howToPlay": "A core bond the maintainer wrote (docs/research/15-babel-bond.md, deliberate deviation from the official mode). Its 11 members are injected by tools/content/custom.mjs, not derived from powerIdList: 暴行, 奥达, 阿米娅·医疗, 阿斯卡纶, 可露希尔, 赫德雷, 逻各斯, 维什戴尔 are the 8 new shop chess, 华法琳 / 魔王 / 伊内丝 are official chess that gain the bond (and, for 华法琳 and 魔王, their hidden T5 forms too).",
         "assumed": [
@@ -10112,7 +10112,7 @@
           "The three 战斗中 counters (承伤 800 / 治疗 1200 / 造成伤害 4000 for 阿斯卡纶 and 5000 for 逻各斯) are the maintainer's measured values of 2026-10-12, read off one standard battle per operator (5823 damage taken, 5840 HP actually healed; the damage thresholds were lowered from the first landing's 3000 / 8000, which filled their caps far too early); every threshold and cap lives in the garrison blackboard (tools/content/custom.mjs), never in code."
         ],
         "notes": [
-          "巴别塔 is the maintainer's own content: the official act2autochess has 23 bonds, none of them this one (docs/research/15-babel-bond.md).",
+          "巴别塔 is the maintainer's own content: the official act2autochess has 23 bonds, none of them this one (docs/research/15-babel-bond.md).",          "2026-10-13 (maintainer): the 一档 copy's 「最高+10%」 was overruled by the table's +20% (other_bond_kind_atk 0.04 / cap 0.20), the rider became an independent final multiplier, the 二档 rose to 1.20 + 0.0008*L (cap 2.00), both bonds' parentheses dropped their ceilings, and installBabel's reader was fixed to the bb key names above (it had asked for cmd_damage_scale_* / cmd_penetrate_* names no record defines, leaving the whole 二档 aura at damage x1.00 / penetration 0; docs/DATA.md §19.12, docs/history/0.2.5.md §30.34).",
           "weight 10: it joins the per-match 每局禁用 draw like every core bond, so the core ban pool grows from 8 to 9.",
           "powerIdList ['babel'] — 巴别塔 is a groupId / subPower in the official powers, not a nationId; DIY picks whose powers carry babel (凯尔希, W, 真言) therefore derive this bond in backups.json diy.operators (docs/DATA.md §18).",
           "The 特质 of the members are the 承伤 / 治疗 / 伤害输出 axes: three handlers of server/sim/content/garrisons/battle.js (act1autochess_gar_event_takedamage / _healamount / _dealdamage). _dealdamage reads the `damaged` hook (the HP actually taken off an enemy — the same number stats.dmg gets), excludes friendly fire, self damage, element gauge chips, 流失 and over-kill, and is shared by 逻各斯 and 阿斯卡纶.",
@@ -10188,7 +10188,7 @@
           "tier": 2,
           "shopSortId": 23,
           "charId": "char_1037_amiya3",
-          "name": "阿米娅",
+          "name": "阿米娅·医疗",
           "rarityStar": 5,
           "profession": "MEDIC",
           "subProfessionId": "incantationmedic",
@@ -10457,18 +10457,20 @@
           "prototypeName": null,
           "bondIds": [
             "babelShip",
-            "arcaneShip"
+            "arcaneShip",
+            "preciShip"
           ],
           "bondNames": [
             "巴别塔",
-            "奥术"
+            "奥术",
+            "精准"
           ],
           "garrisons": [
             {
               "id": "garrison_169",
               "eventType": "IN_BATTLE",
-              "desc": "<战斗中>每累计造成5000点伤害，使已激活的【巴别塔】【奥术】层数+6（每场作战至多24层）",
-              "descElite": "<战斗中>每累计造成5000点伤害，使已激活的【巴别塔】【奥术】层数+8（每场作战至多32层）"
+              "desc": "<战斗中>每累计造成5000点伤害，使已激活的【巴别塔】【奥术】【精准】层数+6（每场作战至多24层）",
+              "descElite": "<战斗中>每累计造成5000点伤害，使已激活的【巴别塔】【奥术】【精准】层数+8（每场作战至多32层）"
             }
           ]
         },
@@ -10520,17 +10522,19 @@
           "prototypeCharId": null,
           "prototypeName": null,
           "bondIds": [
-            "babelShip"
+            "babelShip",
+            "preciShip"
           ],
           "bondNames": [
-            "巴别塔"
+            "巴别塔",
+            "精准"
           ],
           "garrisons": [
             {
               "id": "garrison_170",
               "eventType": "IN_BATTLE",
-              "desc": "攻击力和生命值+20%；【巴别塔】每叠加3层，本干员攻击力和生命值+1%",
-              "descElite": "攻击力和生命值+40%；【巴别塔】每叠加3层，本干员攻击力和生命值+2%"
+              "desc": "攻击力和生命值+20%；【巴别塔】【精准】每叠加3层，本干员攻击力和生命值+1%",
+              "descElite": "攻击力和生命值+40%；【巴别塔】【精准】每叠加3层，本干员攻击力和生命值+2%"
             }
           ]
         }
@@ -10607,10 +10611,10 @@
         null,
         "erosion_dot_per_stack"
       ],
-      "desc": "【元素】干员造成的元素损伤提升（受层数影响，150层达到最大增益）\n<在场3名不同【元素】干员>按元素损伤种类分别生效（受层数影响，200层达到最大增益）：\n凋亡损伤爆发：本次元素爆发造成的伤害提升至110%，目标的攻击力额外最终降低至70%\n灼燃损伤爆发：本次元素爆发造成的伤害提升至195%，目标的法术抗性额外-20\n神经损伤爆发：本次元素爆发直接造成的伤害提升至110%，冷却期间每秒额外受到500点无来源的元素持续伤害\n侵蚀损伤爆发：目标的防御力额外永久-120，冷却期间每0.03秒受到一次、共10次、每次750点无来源的物理持续伤害",
-      "descRaw": "【元素】干员造成的元素损伤提升<@autochess.gray>（受层数影响，150层达到最大增益）</>\n<在场<@autochess.dgreen>3</>名不同【元素】干员>按元素损伤种类分别生效<@autochess.gray>（受层数影响，200层达到最大增益）</>：\n凋亡损伤爆发：本次元素爆发造成的伤害提升至<@ba.vup>110%</>，目标的攻击力额外最终降低至<@ba.vup>70%</>\n灼燃损伤爆发：本次元素爆发造成的伤害提升至<@ba.vup>195%</>，目标的法术抗性额外<@ba.vup>-20</>\n神经损伤爆发：本次元素爆发直接造成的伤害提升至<@ba.vup>110%</>，冷却期间每秒额外受到<@ba.vup>500</>点无来源的元素持续伤害\n侵蚀损伤爆发：目标的防御力额外永久<@ba.vup>-120</>，冷却期间每<@ba.vup>0.03</>秒受到一次、共<@ba.vup>10</>次、每次<@ba.vup>750</>点无来源的物理持续伤害",
-      "effectDesc": "【元素】干员造成的元素损伤+{0:0%}（受层数影响，150层达到最大增益）\n<在场3名不同【元素】干员>按元素损伤种类分别生效（受层数影响，200层达到最大增益）：\n凋亡损伤爆发：本次元素爆发造成的伤害提升至{1:0%}，目标的攻击力额外最终降低至{2:0%}\n灼燃损伤爆发：本次元素爆发造成的伤害提升至{3:0%}，目标的法术抗性额外-{4:0}\n神经损伤爆发：本次元素爆发直接造成的伤害提升至{5:0%}，冷却期间每秒额外受到{6:0}点无来源的元素持续伤害\n侵蚀损伤爆发：目标的防御力额外永久-{7:0}，冷却期间每0.03秒受到一次、共10次、每次{8:0}点无来源的物理持续伤害",
-      "effectDescResolved": "【元素】干员造成的元素损伤+(10+0.3×L)%（受层数影响，150层达到最大增益）\n<在场3名不同【元素】干员>按元素损伤种类分别生效（受层数影响，200层达到最大增益）：\n凋亡损伤爆发：本次元素爆发造成的伤害提升至(110+1.075×L)%（最高325%），目标的攻击力额外最终降低至70%\n灼燃损伤爆发：本次元素爆发造成的伤害提升至(195+1.495×L)%（最高494%），目标的法术抗性额外-20\n神经损伤爆发：本次元素爆发直接造成的伤害提升至(110+0.75×L)%（最高260%），冷却期间每秒额外受到(500+4×L)点无来源的元素持续伤害（最高1300）\n侵蚀损伤爆发：目标的防御力额外永久-120，冷却期间每0.03秒受到一次、共10次、每次(750+6×L)点无来源的物理持续伤害（最高1950）",
+      "desc": "【元素】干员造成的元素损伤提升（受层数影响）\n<在场3名不同【元素】干员>按元素损伤种类分别生效（受层数影响）：\n凋亡损伤爆发：本次元素爆发造成的伤害提升至110%，目标的攻击力额外最终降低至70%\n灼燃损伤爆发：本次元素爆发造成的伤害提升至195%，目标的法术抗性额外-20\n神经损伤爆发：本次元素爆发直接造成的伤害提升至110%，冷却期间每秒额外受到500点无来源的元素持续伤害\n侵蚀损伤爆发：目标的防御力额外永久-120，冷却期间每0.03秒受到一次、共10次、每次750点无来源的物理持续伤害",
+      "descRaw": "【元素】干员造成的元素损伤提升<@autochess.gray>（受层数影响）</>\n<在场<@autochess.dgreen>3</>名不同【元素】干员>按元素损伤种类分别生效<@autochess.gray>（受层数影响）</>：\n凋亡损伤爆发：本次元素爆发造成的伤害提升至<@ba.vup>110%</>，目标的攻击力额外最终降低至<@ba.vup>70%</>\n灼燃损伤爆发：本次元素爆发造成的伤害提升至<@ba.vup>195%</>，目标的法术抗性额外<@ba.vup>-20</>\n神经损伤爆发：本次元素爆发直接造成的伤害提升至<@ba.vup>110%</>，冷却期间每秒额外受到<@ba.vup>500</>点无来源的元素持续伤害\n侵蚀损伤爆发：目标的防御力额外永久<@ba.vup>-120</>，冷却期间每<@ba.vup>0.03</>秒受到一次、共<@ba.vup>10</>次、每次<@ba.vup>750</>点无来源的物理持续伤害",
+      "effectDesc": "【元素】干员造成的元素损伤+{0:0%}（受层数影响）\n<在场3名不同【元素】干员>按元素损伤种类分别生效（受层数影响）：\n凋亡损伤爆发：本次元素爆发造成的伤害提升至{1:0%}，目标的攻击力额外最终降低至{2:0%}\n灼燃损伤爆发：本次元素爆发造成的伤害提升至{3:0%}，目标的法术抗性额外-{4:0}\n神经损伤爆发：本次元素爆发直接造成的伤害提升至{5:0%}，冷却期间每秒额外受到{6:0}点无来源的元素持续伤害\n侵蚀损伤爆发：目标的防御力额外永久-{7:0}，冷却期间每0.03秒受到一次、共10次、每次{8:0}点无来源的物理持续伤害",
+      "effectDescResolved": "【元素】干员造成的元素损伤+(10+0.3×L)%（受层数影响）\n<在场3名不同【元素】干员>按元素损伤种类分别生效（受层数影响）：\n凋亡损伤爆发：本次元素爆发造成的伤害提升至(110+1.075×L)%（最高325%），目标的攻击力额外最终降低至70%\n灼燃损伤爆发：本次元素爆发造成的伤害提升至(195+1.495×L)%（最高494%），目标的法术抗性额外-20\n神经损伤爆发：本次元素爆发直接造成的伤害提升至(110+0.75×L)%（最高260%），冷却期间每秒额外受到(500+4×L)点无来源的元素持续伤害（最高1300）\n侵蚀损伤爆发：目标的防御力额外永久-120，冷却期间每0.03秒受到一次、共10次、每次(750+6×L)点无来源的物理持续伤害（最高1950）",
       "effectBuffs": [
         {
           "key": "env_gbuff_new",

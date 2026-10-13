@@ -35,7 +35,7 @@ The first 23 are the official act2autochess bonds; #24 巴别塔 is the maintain
 | 21 | `emptyShip` | 协防干员 | add-on | 2 (upward 2) | BOARD | 2 distinct | damageTakenMul = 0.8; memberDamageMul = 1.2 (elite 1.4) | 5 / 8 |
 | 22 | `soloShip` | 独行 | add-on | 1 (downward 1,2) | BOARD | exactly 1 distinct 独行 on board | atkMul = 1.6; hpMul = 1.6; spOnDeploy = 15 | 6 / 6 |
 | 23 | `suntShip` | 绝技 | add-on | 2 (upward_golden 2) | BOARD_ALL_CHESS | 2 elite (精锐) operators on board (any operators, duplicates count); 5 elite operators on board | atkMul = 1.3; spCostMul = floor(sp*0.7) | 0 / 0 |
-| 24 | `babelShip` | 巴别塔 | CORE (自研) | 3 (upward 3) | BOARD | 3 distinct 巴别塔 on board; every distinct other bond kind among the members (+2% ATK each, cap +10%); 6 distinct 巴别塔 on board | atkMultiplier = maxHpMultiplier = 1 + 0.12 + 0.008*L; auraDamageTo = min(1.10 + 0.0007*L, 1.80); penetrate = min(0.20 + 0.0004*L, 0.60) of DEF and RES | 11 / 13 |
+| 24 | `babelShip` | 巴别塔 | CORE (自研) | 3 (upward 3) | BOARD | 3 distinct 巴别塔 on board; every distinct other bond kind among the members (+4% ATK each, cap +20%, an independent FINAL multiplier on ATK only); 6 distinct 巴别塔 on board | atkMultiplier = maxHpMultiplier = 1 + 0.12 + 0.008*L; auraDamageTo = min(1.20 + 0.0008*L, 2.00); penetrate = min(0.20 + 0.0004*L, 0.60) of DEF and RES | 11 / 13 |
 | 25 | `elementShip` | 元素 | add-on (自研) | 2 (upward 2) | BOARD | 2 distinct 元素 on board; 3 distinct; every clause's own layer cap (150 for 一档, 200 for 二档) | elementDamageMul = 1 + 0.10 + 0.003*min(L, 150); 凋亡 burst = 1.10 + 0.01075*min(L, 200) and the target's final ATK ×0.70; 灼燃 burst = 1.95 + 0.01495*min(L, 200) and RES −20 more; 神经 burst = 1.10 + 0.0075*min(L, 200) and (500 + 4*min(L, 200))/s 无来源 element DoT; 侵蚀 DEF −120 more and ten (750 + 6*min(L, 200)) 无来源 physical hits in 0.3 s | 7 / 8 |
 
 Core (isPower, bondType SEASON): 炎 萨尔贡 维多利亚 谢拉格 拉特兰 阿戈尔 叙拉古 卡西米尔, plus the maintainer's 自研 巴别塔 (§3.24). Add-on: the official 15 plus the maintainer's 自研 元素 (§3.25). New in act2 (下半): 叙拉古, 卡西米尔 (core), 奥术, 独行, 绝技 (add-on).
@@ -1134,16 +1134,16 @@ decision, not an official source; there is no act1 counterpart.
 - UI desc (bondInfoDict.desc):
 
   > 【巴别塔】干员攻击力、生命值提升（受层数影响）
-  > 每有一名【巴别塔】干员所属的其它盟约种类与已计入的不同，全体【巴别塔】干员额外获得攻击力提升（最高+10%）
-  > <在场6名不同【巴别塔】干员>战斗开始时，攻击力最高的【巴别塔】干员成为【指挥】，其周围八格内的友方干员造成的伤害提升至110%，攻击时无视20%的防御力和法术抗性；【指挥】被击倒时，指挥权移交给场上攻击力最高的下一名【巴别塔】干员
+  > 每有一名【巴别塔】干员所属的其它盟约种类与已计入的不同，全体【巴别塔】干员额外获得攻击力提升（最高+20%）
+  > <在场6名不同【巴别塔】干员>战斗开始时，攻击力最高的【巴别塔】干员成为【指挥】。【指挥】及其周围八格内的友方干员造成的伤害提升至120%，攻击时无视20%的防御力和法术抗性。【指挥】被击倒时，【指挥】移交给场上攻击力最高的下一名【巴别塔】干员。
 
 - Detail desc (effectInfoDataDict, positional placeholders `{i:fmt}` = `bb[baseParams[i]] + bb[perStackParams[i]] × L`):
 
   > 【巴别塔】干员攻击力、生命值+{0:0%}（受层数影响），每有一名…额外获得攻击力+{4:0%}（最高+{5:0%}）
-  > <在场6名不同【巴别塔】干员>…伤害提升至{2:0%}（受层数影响，最高180%），攻击时无视{3:0%}的防御力和{6:0%}的法术抗性（均受层数影响，最高60%）
+  > <在场6名不同【巴别塔】干员>战斗开始时…成为【指挥】，【指挥】及其周围八格内的友方干员造成的伤害提升至{2:0%}（受层数影响），攻击时无视{3:0%}的防御力和{6:0%}的法术抗性（受层数影响）
 
 - Buff blackboard (`env_gbuff_new`, key `act2autochess_bond_eff_babel`):
-  `{"base_atk":0.12,"atk_per_stack":0.008,"base_max_hp":0.12,"max_hp_per_stack":0.008,"other_bond_kind_atk":0.02,"other_bond_kind_atk_cap":0.10,"base_damage_scale_show":1.10,"damage_scale_per_stack":0.0007,"damage_scale_cap":1.80,"base_def_penetrate":0.20,"def_penetrate_per_stack":0.0004,"base_res_penetrate":0.20,"res_penetrate_per_stack":0.0004,"penetrate_cap":0.60}`
+  `{"base_atk":0.12,"atk_per_stack":0.008,"base_max_hp":0.12,"max_hp_per_stack":0.008,"other_bond_kind_atk":0.04,"other_bond_kind_atk_cap":0.20,"base_damage_scale_show":1.20,"damage_scale_per_stack":0.0008,"damage_scale_cap":2.00,"base_def_penetrate":0.20,"def_penetrate_per_stack":0.0004,"base_res_penetrate":0.20,"res_penetrate_per_stack":0.0004,"penetrate_cap":0.60}`
 
 **Implementable spec**
 
@@ -1151,20 +1151,25 @@ decision, not an official source; there is no act1 counterpart.
   ×(1 + 0.12 + 0.008·L) — **both** attributes, unlike 炎 (ATK only) and 阿戈尔 (HP only); the base is lower than theirs
   for that reason.
 - **[distinct other bond kinds among the members]** For every bond kind other than 巴别塔 that a member carries and that
-  has not been counted yet, all members gain ATK +2%, capped at +10% (5 kinds). Only kinds available in this match
-  count: a bond in `mode.inactiveBondIds` is skipped (OPEN-1, the maintainer's decision of 2026-10-12).
+  has not been counted yet, all members gain ATK +4%, capped at +20% (5 kinds), as an **independent FINAL multiplier**
+  (`bond:babel:rider`'s own `atkMul`, outside the 直接乘算 `atkPct` bucket; ATK only, never max HP — maintainer's
+  ruling of 2026-10-13, which also settled the copy's 「最高+10%」 against the table's +20%). Only kinds available in
+  this match count: a bond in `mode.inactiveBondIds` is skipped (OPEN-1, the maintainer's decision of 2026-10-12).
 - **[6 distinct 巴别塔 on board]** At battle start the highest-ATK member (ATK snapshot; deployment order on ties)
   becomes 【指挥】. Allies on the 8 surrounding tiles (a full ring, independent of facing; the aura follows the
   【指挥】's position; own units only, so it never crosses players in 联防 / boss fields; summons included) deal damage
-  ×min(1.10 + 0.0007·L, 1.80) and ignore min(0.20 + 0.0004·L, 0.60) of DEF and RES. The penetration shares 精准 tier
-  2's `defIgnorePct` / `resIgnorePct` mods and takes the strongest, never the sum (the engine's `applyStrongest`
-  convention; 60% + 30% would otherwise erase DEF/RES). On a knock-out the ring passes to the highest-ATK living
-  member still on the field (death hook ordered after 不屈(10) / 阿戈尔(11)); retreats, leaks and substitute swaps do
-  not hand it over; with no member left the aura is gone.
-- Formulas: `atkMultiplier = 1 + 0.12 + 0.008*L` (+0.02 per distinct other kind, cap +0.10); `maxHpMultiplier = 1 + 0.12 + 0.008*L`;
-  `auraDamageTo = min(1.10 + 0.0007*L, 1.80)`; `penetrate = min(0.20 + 0.0004*L, 0.60)`.
+  ×min(1.20 + 0.0008·L, 2.00) and ignore min(0.20 + 0.0004·L, 0.60) of DEF and RES. 精准 tier 2 carries its own 30 %
+  as a SOURCE STAT that the damage pipeline adds back on top of the instance (`server/sim/damage.js landedPreShield`), so
+  this bond writes only the part above the source's own value and the pair lands as `max(stat, pen)`: the strongest one
+  holds, never the sum (60 % + 30 % would otherwise erase DEF/RES). On a knock-out the ring passes to the highest-ATK
+  living member still on the field (the passive `death` hook defers the re-pick by one tick and re-reads `alive` /
+  `deployed`, so a 不屈 / 阿戈尔 revive keeps the command); retreats, leaks and substitute swaps do not hand it over;
+  with no member left the aura is gone.
+- Formulas: `atkMultiplier = (1 + 0.12 + 0.008*L) × (1 + min(0.04 per distinct other kind, 0.20))` (the rider is a
+  separate final multiplier); `maxHpMultiplier = 1 + 0.12 + 0.008*L`; `auraDamageTo = min(1.20 + 0.0008*L, 2.00)`;
+  `penetrate = min(0.20 + 0.0004*L, 0.60)`.
 - Layer budget (design §4): ≈330–570 layers over 13 rounds, so L≈350–550 in practice — 180% / 60% are the theoretical
-  caps, reachable only with extra layer sources.
+  caps (2.00 / 0.60), reachable only with extra layer sources.
 - [ASSUMED] The rider counts bond *kinds*, deduplicated, and only the kinds available this match (OPEN-1) — the text
   names no source for the count.
 - [ASSUMED] The 【指挥】 candidate is the ATK snapshot at battle start and the ring passes only on a knock-out; the
@@ -1178,18 +1183,18 @@ belongs to the operator, so both of their forms carry it — 伊内丝 has no hi
 | # | chessId | 名称 | Tier | Type | Other bonds | Layer trait |
 |---|---|---|---|---|---|---|
 | 1 | `chess_char_1_05_babel_a` | 暴行 | 1 | PRESET (new) | 助力 | `<售出时>` +1 / +2 资金 (economy, not a layer source) |
-| 2 | `chess_char_1_06_babel_a` | 奥达 | 1 | PRESET (new) | — | `<休整期结束时>` 巴别塔 +1 / +2 |
-| 3 | `chess_char_2_05_babel_a` | 阿米娅·医疗 | 2 | PRESET (new) | 奥术 | 攻防 +20 / +40%; 每 3 层攻速 +1 / +2 |
+| 2 | `chess_char_1_06_babel_a` | 奥达 | 1 | PRESET (new) | — | `<战斗中>` 每累计承受 800 点伤害，使已激活的【巴别塔】层数 +1 / +2（每场战斗至多 8 / 16 层） |
+| 3 | `chess_char_2_05_babel_a` | 阿米娅·医疗 | 2 | PRESET (new) | 奥术 | `<战斗中>` 每累计实际治疗友方干员 1200 点生命，使已激活的【巴别塔】【奥术】层数各 +2 / +4（每场战斗至多 10 / 20 层） |
 | 4 | `chess_char_4_26_a` | 华法琳 | 4 | PRESET (official, bond added) | 奇迹 | hands the tile in front of her +1 / +2 per skill cast (cap 7 / 14, the official row — the 4 / 8 override was withdrawn 2026-10-13) |
 | 5 | `chess_char_5_04_a` | 华法琳 (hidden T5) | 5 | PRESET (official, bond added) | 奇迹 | as above |
-| 6 | `chess_char_3_05_babel_a` | 阿斯卡纶 | 3 | PRESET (new) | 突袭 | `<战斗中>` 前 3 次击倒 +2 / +4 (cap 6 / 12) |
+| 6 | `chess_char_3_05_babel_a` | 阿斯卡纶 | 3 | PRESET (new) | 突袭 (独行 removed 2026-10-13) | `<战斗中>` 每累计造成 4000 点伤害，使已激活的【巴别塔】【突袭】层数 +2 / +4（每场作战至多 6 / 12 层） |
 | 7 | `chess_char_3_06_babel_a` | 可露希尔 | 3 | PRESET (new) | 投资人 | `<获得时>` own bonds +4 / +8 |
 | 8 | `chess_char_4_25_a` | 魔王 | 4 | PRESET (official, bond added) | — | amplifies a 战斗中 layer gain in front of her +1 / +2 |
 | 9 | `chess_char_5_09_a` | 魔王 (hidden T5) | 5 | PRESET (official, bond added) | — | as above |
 | 10 | `chess_char_4_04_a` | 伊内丝 | 4 | PRESET (official, bond added) | 远见, 突袭 | `<休整期结束时>` own bonds +5 / +10 (the layer engine) |
 | 11 | `chess_char_5_06_babel_a` | 赫德雷 | 5 | PRESET (new) | 不屈 | 每 3 层攻防 +1% / +2% |
-| 12 | `chess_char_5_07_babel_a` | 逻各斯 | 5 | PRESET (new) | 奥术 | `<进入休整期时>` 巴别塔 +4 / +8 |
-| 13 | `chess_char_6_04_babel_a` | 维什戴尔 | 6 | PRESET (new) | — | 攻防 +20 / +40%; 每 3 层攻防 +1% / +2% |
+| 12 | `chess_char_5_07_babel_a` | 逻各斯 | 5 | PRESET (new) | 奥术, 精准 (精准 added 2026-10-13) | `<战斗中>` 每累计造成 5000 点伤害，使已激活的【巴别塔】【奥术】【精准】层数 +6 / +8（每场作战至多 24 / 32 层） |
+| 13 | `chess_char_6_04_babel_a` | 维什戴尔 | 6 | PRESET (new) | 精准 (added 2026-10-13) | 攻防 +20 % / +40 %；【巴别塔】【精准】层数合计每 3 层攻防 +1 % / +2 %（一行两个半边，`bond_id` `babelShip,preciShip`） |
 
 The 8 new members are ordinary shop chess of the injected data (tier 1/1/2/3/3/5/5/6). Their elite carries its
 operator's default ADVANCED module like an official golden (`status.equipLevel` 1, 3 at T6 — maintainer's instruction of
@@ -1213,13 +1218,14 @@ Notes on the member tables: *(hidden)* = `isHidden` in charShopChessDatas - not 
 | 4 | 珊比 | `chess_char_4_27_a/_b` | — | `<获得时>使【元素】层数+6（无需激活盟约）` ｜ +12 — NEW; promoted out of the 自选 pool (a visible T4 PRESET shop chess) |
 | 5 | 烛煌 | `chess_char_5_03_a/_b` | 维多利亚、炎 | `<获得时>【炎】【维多利亚】【元素】层数+5（无需激活盟约）` ｜ +10 — `garrison_35_a/_b` EXTENDED |
 | 5 | 妮芙 | `chess_char_5_22_a/_b` (+ hidden `6_10_a/_b`) | 迅捷 | `<休整期结束时>整备区每有1个干员，使已激活的【迅捷】【元素】层数+2` ｜ +4 — `garrison_56_a/_b` EXTENDED |
-| 5 | 克莱门莎 | `chess_char_5_clemnt_a/_b` | 阿戈尔、迅捷、不屈 | `<战斗中>每击倒3名敌人，使已激活的【阿戈尔】【迅捷】【不屈】层数+2（每场战斗至多+14）` ｜ +4（至多 +28）— `garrison_161_a/_b` REPLACED |
+| 5 | 克莱门莎 | `chess_char_5_clemnt_a/_b` | 阿戈尔、迅捷、**元素** | `<战斗中>`每击倒3名敌人，使已激活的【阿戈尔】【迅捷】【元素】层数+2（每场战斗至多+14）｜ +4（至多 +28）— `garrison_178_a/_b` **REPLACES** her committed `garrison_161_a/_b`（旧对经 `garrisonKeep` 保留为孤行；2026-10-13 起她的四个字段是显式覆盖，`docs/DATA.md` §19.5 / §19.9） |
 | 6 | 余 | `chess_char_6_03_a/_b` | 炎、坚守 | 特质不变 (`garrison_37_a/_b`), `bonds` only |
 | 6 | 塑心 | `chess_char_6_09_a/_b` | 拉特兰 | 特质不变 (`garrison_90_a/_b`), `bonds` only |
 
 `powerIdList` is empty and the members are an explicit `chessIdList` (the official 本源 branches are sub-professions,
 not factions). The one 一档 effect and the four 二档 clauses are in §1 (row 25) and in the bond's `bb`; the two clamps
-(150 / 200 layers) live inside the formulas.
+(150 / 200 layers) live inside the formulas, and since 2026-10-13 the in-game copy states neither of them (both
+parentheses read 「（受层数影响）」 only) while the formulas keep clamping.
 
 ## 4. Layer sources catalogue (garrison traits that add layers)
 

@@ -419,12 +419,14 @@ async function loadManifest() {
 // ===== custom content (自研 deviations) ==========================================================
 
 /**
- * The maintainer's research-only content: tools/content/custom.mjs. Three fiat blocks of equal standing — the 巴别塔 core
+ * The maintainer's research-only content: tools/content/custom.mjs. Four fiat blocks of equal standing — the 巴别塔 core
  * bond with its 11 members and their 特质 (docs/research/15-babel-bond.md), the 元素 add-on bond with its 7 members
- * (docs/research/17-element-bond.md), and 克莱门莎, the 自选 operator the maintainer turned into a T5 shop chess with her
- * official 特质 (Codex, 2026-10-12), which exists in no build source and would be dropped by every rebuild without this
- * file. The module documents every entry and the semantics; this function is only the merge. It runs on the loaded
- * tables BEFORE any builder and is ADD-IF-ABSENT throughout:
+ * (docs/research/17-element-bond.md), 克莱门莎, the 自选 operator the maintainer turned into a T5 shop chess with her
+ * official 特质 (Codex, 2026-10-12), and W, the 自研 策略 of the 巴别塔 layer (2026-10-14; 特蕾西娅 【传承】 until the
+ * maintainer renamed it the same day) — all of which exist in
+ * no build source and would be dropped by every rebuild without this file. The module documents every entry and the
+ * semantics; this function is only the merge. It runs on the loaded tables BEFORE any builder and is ADD-IF-ABSENT
+ * throughout:
  *
  *   act.charChessDataDict / charShopChessDatas / chessNormalIdLookupDict   chess, elementChess, shopRows, normalLookup,
  *                                                                         clemensa.chess / .shopRows / .normalLookup
@@ -432,6 +434,7 @@ async function loadManifest() {
  *   act.bondInfoDict / ac.bondInfoDict                                     bond, modeBond, elementBond, elementModeBond
  *   act.effectInfoDataDict / effectBuffInfoDataDict                        effect, effectBuffs, effects, effectBuffsPledge,
  *                                                                         elementEffect, elementEffectBuffs, itemEffects, …
+ *   act.bandDataListDict / ac.bandDataDict                                 band, bandMeta (the 自研 策略)
  *   act.trapChessDataDict / trapShopChessDatas                             items, itemShopRows
  *   charTable                                                              characters, itemTraps
  *   buildConfig's mode overlay (returned here, applied there)              modeBonds.active
@@ -549,6 +552,12 @@ function applyCustom(ctx) {
   addDictRows(act.trapShopChessDatas, c.itemShopRows, 'item shop row');
   addDictRows(act.effectInfoDataDict, c.itemEffects, 'item effect');
   addDictRows(act.effectBuffInfoDataDict ?? (act.effectBuffInfoDataDict = {}), c.itemEffectBuffs, 'item effect buff');
+  // The 自研 策略 (band, docs/history/0.2.5.md 「滥炸无休」): a band is the two band tables plus an effect, and the effect
+  // goes through the same channel as every other one above (c.effect / c.itemEffects / c.choices).
+  addDictRows(act.bandDataListDict, c.band, 'band');
+  addDictRows(ac.bandDataDict ?? (ac.bandDataDict = {}), c.bandMeta, 'band meta');
+  addDictRows(act.effectInfoDataDict, c.bandEffect, 'band effect');
+  addDictRows(act.effectBuffInfoDataDict ?? (act.effectBuffInfoDataDict = {}), c.bandEffectBuffs, 'band effect buff');
   if (ctx.research.items && c.researchItems?.length) {
     for (const row of c.researchItems) {
       if (ctx.research.items.items.some((x) => x.id === row.id)) { warn(`custom: item research entry ${row.id} is already in docs/research/04-items.json (custom row skipped)`); continue; }
@@ -2289,8 +2298,9 @@ function buildItems(ctx, effects) {
 // ===== bands (策略) ===============================================================================
 
 /**
- * Build data/bands.json: the 40 season strategies. `bondIds` (the bonds a strategy is built around: shared/bandBonds.js
- * over its text and blackboards, needing bonds.json and choices.json pools) is added in main() once those are built.
+ * Build data/bands.json: the 41 strategies (the 40 official season ones plus the 自研 W, tools/content/custom.mjs).
+ * `bondIds` (the bonds a strategy is built around: shared/bandBonds.js over its text and blackboards, needing
+ * bonds.json and choices.json pools) is added in main() once those are built.
  */
 function buildBands(ctx, effects) {
   const { act, ac } = ctx;
@@ -4118,7 +4128,10 @@ function validateAll(f) {
     .filter((r) => !r.isGolden && !r.isHidden).length + 1
     + Object.values(customContent.elementChess || {}).filter((r) => !r.isGolden && !r.isHidden).length;
   if (Object.keys(bonds).length !== 23 + customBondCount) err(`expected ${23 + customBondCount} bonds, got ${Object.keys(bonds).length}`);
-  if (Object.keys(bands).length !== 40) err(`expected 40 bands, got ${Object.keys(bands).length}`);
+  // 40 official season strategies + the 自研 W of tools/content/custom.mjs, counted the same way as the bonds and
+  // the visible chess above so a second 自研 band stays a one-file change (docs/DATA.md §6 / §19).
+  const customBandCount = Object.keys(customContent.band || {}).length;
+  if (Object.keys(bands).length !== 40 + customBandCount) err(`expected ${40 + customBandCount} bands, got ${Object.keys(bands).length}`);
   if (visible.length !== 112 + customVisibleChess) err(`expected ${112 + customVisibleChess} visible non-DIY chess, got ${visible.length}`);
   for (const c of Object.values(chess)) {
     if (!chess[c.baseId]) err(`chess ${c.chessId}: baseId missing`);

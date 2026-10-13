@@ -404,6 +404,9 @@ The 20-fund 绮良 / 55-fund 帕格尼尼 band thresholds count **funds spent** 
 
 ## 11. Strategies / bands (`bandDataListDict`, 40 entries) [DATA]
 
+> The official 40. The dataset ships **41** — the 自研 W【滥炸无休】 is not in this table (see the note under the band
+> table and `docs/DATA.md` §19.13).
+
 A band is the player's commander/"分队" chosen at BAND_CHECK. It sets **starting LP** (`totalHp`) and grants one permanent rule-changing effect (`effectType` BAND_INITIAL). Common fields: `victorCount`=3 (3 clears → badge) and `bandRewardModulus`=1.0.
 
 `band_zumama` (森蚺, 上半 only) is defined in `autoChessData.bandDataDict` but absent from act2.
@@ -454,6 +457,7 @@ Modes column: L=LOCAL(training), S=SINGLE, M=MULTI. Raw rich-text is kept in the
 | 40 | `band_amedic` | Touch | 28 | S,M | 【外勤医疗】所有玩家场地上出现一名<预备干员-医疗>；战斗开始时，若场上至少有两名精锐干员，则替换为<Touch> | `auto_chess_change_map` {"common_condition": "condition_golden_chess_le", "cnt": 1.0, "char_605_cmedic#1": 1.0, "char_605_cmedic#2_multi_only": 1.0, "char_605_cmedic#3": 1.0, "char_605_cmedic#4_multi_only": 1.0, "char_613_acmedc#1": 0.0, "char_613_acmedc#2_multi_only": 0.0, "char_613_acmedc#3": 0.0, "char_613_acmedc#4_multi_only": 0.0}; `auto_chess_change_map` {"common_condition": "condition_golden_chess_ge", "cnt": 2.0, "char_613_acmedc#1": 1.0, "char_613_acmedc#2_multi_only": 1.0, "char_613_acmedc#3": 1.0, "char_613_acmedc#4_multi_only": 1.0, "char_605_cmedic#1": 0.0, "char_605_cmedic#2_multi_only": 0.0, "char_605_cmedic#3": 0.0, "char_605_cmedic#4_multi_only": 0.0} | 通关任意模拟3次解锁 |
 
 Band notes for implementation:
+- **The 自研 band is not in this table.** `band_w` W【滥炸无休】 (the 41st strategy: the team's cumulative 造成伤害 at 10万 / 30万 / 85万 pays a random tier-3 【巴别塔】 operator / a random tier-4-or-above one — 伊内丝 / 魔王 / 华法琳 at T4, 赫德雷 / 逻各斯 at T5 and **维什戴尔 at T6** / the fixed 维什戴尔, at the prep after each crossing) exists in **no** official table — it is the maintainer's fiat content of 2026-10-14 (named 特蕾西娅【传承】 until the same day's rename) and lives in `tools/content/custom.mjs` (`band` / `bandMeta` / `bandEffect` / `bandEffectBuffs`), merged by `applyCustom` add-if-absent. Its rule is `round_start_gain_chess_by_team_damage` in `server/sim/content/bands/meta.js`; the data and the design record are `docs/DATA.md` §19.13 and `docs/history/0.2.5.md` §30.35 / §30.35a / §30.35b / §30.35c (the last is the same day's copy wording: 「…点伤害**后**，在下一回合休整期开始时…」, 一名 instead of 1名 — the rule above is unchanged). Everything in this section — the 40 rows above, the ordering and the fields — is the official data (`bandDataListDict`).
 - **Economy bands:**
   - 坎诺特 (carry-over + interest). `constData.noMoneyTipsBand`=[band_cannot]: the "leftover funds will be lost" warning is not shown to this band.
   - 老鲤: R1/R2 income 0, R3 15, plus 1 random tier II and 1 random tier IV at R3.

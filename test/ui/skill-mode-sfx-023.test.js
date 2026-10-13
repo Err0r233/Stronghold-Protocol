@@ -57,3 +57,28 @@ test('mixed mode banks are not guessed; the selected official bank retains its m
   const { template } = buildPlan({ assets07: {}, ops03: {}, extraOperators: { [id]: { skills: [{ index: 2, skillId: 'test' }] } }, enemies05: {}, maps05: {}, audio, modelsData: {} });
   assert.deepEqual(template.audio.sfx.units[id].attackMix, { 2: { p: 0.5, vol: 0.6 } });
 });
+
+// 奥达's only ON_SKILL_START bank belongs to her S2 (`skchr_odda_2` → `b_char_atkboost`), so `skillSfx` = {1: …}:
+// the `> 1` rule wrote neither `skill` (the primary slot 0 has no bank) nor `skills`, and her skill ran silent on a
+// file that sits on disk (audio audit of 2026-10-12; 琳琅诗怀雅 / 银灰 / 古米 / 泥岩 / 至简 / 薇薇安娜 / 莎草 / Mon3tr /
+// 灰毫 alike). The per-index map carries it; `skill` stays the primary's fallback (public/js/audio.js unit).
+test('a single activation bank of a NON-primary slot is carried as `skills`, not dropped', () => {
+  const oid = 'char_4131_odda';
+  const bank = (skillId) => ({ name: `battle.ON_SKILL_START.${skillId}`, sounds: [{ asset: 'Audio/Sound_Beta_2/Battle/b_char/b_char_atkboost.mp3', weight: 1 }] });
+  const skills = [{ index: 0, skillId: 'skchr_odda_1' }, { index: 1, skillId: 'skchr_odda_2' }];
+  const plan = (banks) => buildPlan({
+    assets07: {}, ops03: {}, extraOperators: { [oid]: { skills } }, enemies05: {}, maps05: {},
+    audio: indexAudio({ soundFXBanks: banks }), modelsData: {},
+  }).template.audio.sfx.units[oid];
+
+  const onlyS2 = plan([bank('skchr_odda_2')]);
+  assert.deepEqual(Object.keys(onlyS2.skills), ['1'], 'S2 keeps its own activation sound');
+  assert.equal(onlyS2.skill, undefined, 'no primary-slot bank, so no `skill` fallback');
+
+  const primaryOnly = plan([bank('skchr_odda_1')]);
+  assert.ok(primaryOnly.skill, 'the primary slot’s bank is the unit’s skill sound');
+  assert.equal(primaryOnly.skills, undefined, 'a single primary-slot bank needs no map');
+
+  const both = plan([bank('skchr_odda_1'), bank('skchr_odda_2')]);
+  assert.deepEqual(Object.keys(both.skills), ['0', '1'], 'several banks were already written as a map');
+});

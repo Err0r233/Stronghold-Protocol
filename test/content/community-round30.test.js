@@ -5,7 +5,9 @@ import { makeBattle, chessRec, enemyRec, checkInvariants } from '../helpers/batt
 test('Clementia S3 ignores allied erosion bursts but still marks enemy bursts', () => {
   const h = makeBattle({ autoFinish: false, hooks: ['elementBurst'],
     units: [
-      { uid: 1, diy: { slot: 6, charId: 'char_4231_clemnt', skillIndex: 2 }, elite: true, row: 10, col: 3 },
+      // 克莱门莎 was promoted to a 「巴别塔」 shop chess (chess_char_5_clemnt_a/_b): her charId left `backups.json units`
+      // and `diy.ownedPool`, so the old 自选 slot path (slot 6, elite) is gone — the elite `_b` record is the same form
+      { uid: 1, chessId: 'chess_char_5_clemnt_b', skillIndex: 2, row: 10, col: 3 },
       { uid: 2, chessId: 'chess_char_1_02_a', row: 10, col: 4 },
     ], defs: { enemies: { target: enemyRec({ key: 'target', hp: 1e7, atk: 0, speed: 0 }) } },
   });

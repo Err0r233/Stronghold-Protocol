@@ -331,6 +331,9 @@ Roles = {
   move: Clip|null,         // enemies: Move_Begin|Move_Start + Move_Loop|Move + Move_End → Run_*
   run?: Clip,              // the model's own Run cycle (Run_Begin/Loop/End): an enemy faster than moveSpeed 1 moves on it
   stun: Clip|null          // Stun | Stun_1 | Dizzy_Loop (+ *_Begin / *_End); null ⇒ freeze the track (timeScale 0)
+                           //   played once, holding its last frame, when the clip ends in a pose of its own (its last
+                           //   frame differs from its first: 维什戴尔's Stun drops into the stunned crouch and stays);
+                           //   a seamless cycle loops (render/spine.js clipHoldsEnd)
 }
 ```
 
